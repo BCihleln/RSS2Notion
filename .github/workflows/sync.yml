@@ -26,7 +26,7 @@ jobs:
       - name: Run RSS sync
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          NOTION_ENTRIES_DATABASE_ID: ${{ secrets.NOTION_ENTRIES_DATABASE_ID }}
+          NOTION_ARTICLES_DATABASE_ID: ${{ secrets.NOTION_ARTICLES_DATABASE_ID }}
           NOTION_FEEDS_DATABASE_ID: ${{ secrets.NOTION_FEEDS_DATABASE_ID }}
           TIMEZONE: ${{ vars.TIMEZONE || 'Asia/Shanghai' }}
           CLEANUP_DAYS: ${{ vars.CLEANUP_DAYS || '30' }}

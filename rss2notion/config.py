@@ -27,9 +27,9 @@ class Config:
         if not api_key:
             missing.append("NOTION_API_KEY")
 
-        database_id = os.environ.get("NOTION_ENTRIES_DATABASE_ID", "")
+        database_id = os.environ.get("NOTION_ARTICLES_DATABASE_ID", "")
         if not database_id:
-            missing.append("NOTION_ENTRIES_DATABASE_ID")
+            missing.append("NOTION_ARTICLES_DATABASE_ID")
 
         sub_database_id = os.environ.get("NOTION_FEEDS_DATABASE_ID", "")
         if not sub_database_id:

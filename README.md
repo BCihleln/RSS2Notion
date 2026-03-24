@@ -46,9 +46,7 @@
 
 点击下方链接将模板复制到你的 Notion 工作区：
 
-<!-- 请将下方链接替换为你的 Notion 模板 Duplicate 链接 -->
-<!-- NOTION_TEMPLATE_LINK -->
-> 🔗 **Notion 模板链接** — 待补充
+👉 [**点击复制 Notion 模板**](https://aeolian-saga-950.notion.site/RSS-Hub-32c4c2f98bee8000b3e7e7fb4c0d644a)，点击右上角“Duplicate”，在你的 Notion 中创建一个副本。
 
 模板包含两个数据库：
 - **订阅数据库** — 管理你的 RSS 订阅源
@@ -80,7 +78,7 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
                                      这一段（32位）即为数据库 ID
 ```
 
-- **阅读数据库 ID** → `NOTION_ENTRIES_DATABASE_ID`
+- **文章数据库 ID** → `NOTION_ARTICLES_DATABASE_ID`
 - **订阅数据库 ID** → `NOTION_FEEDS_DATABASE_ID`
 
 ### 步骤 4：Fork 仓库并配置 Secrets
@@ -92,7 +90,7 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 | Secret 名称 | 说明 |
 |------------|------|
 | `NOTION_API_KEY` | Notion Integration Token |
-| `NOTION_ENTRIES_DATABASE_ID` | 阅读数据库 ID |
+| `NOTION_ARTICLES_DATABASE_ID` | 阅读数据库 ID |
 | `NOTION_FEEDS_DATABASE_ID` | 订阅数据库 ID |
 
 <!-- 截图：GitHub Secrets 配置示意图 -->
@@ -123,7 +121,7 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 | 环境变量 | 必填 | 默认值 | 说明 |
 |---------|:----:|--------|------|
 | `NOTION_API_KEY` | ✅ | — | Notion Integration Token |
-| `NOTION_ENTRIES_DATABASE_ID` | ✅ | — | 阅读数据库 ID |
+| `NOTION_ARTICLES_DATABASE_ID` | ✅ | — | 阅读数据库 ID |
 | `NOTION_FEEDS_DATABASE_ID` | ✅ | — | 订阅数据库 ID |
 | `TIMEZONE` | — | `Asia/Shanghai` | IANA 时区名称 |
 | `CLEANUP_DAYS` | — | `30` | Unread 文章保留天数，`-1` 禁用自动清理 |
@@ -170,7 +168,7 @@ uv sync
 
 # 配置环境变量
 export NOTION_API_KEY=your_token
-export NOTION_ENTRIES_DATABASE_ID=your_reading_db_id
+export NOTION_ARTICLES_DATABASE_ID=your_reading_db_id
 export NOTION_FEEDS_DATABASE_ID=your_subscription_db_id
 
 # 运行

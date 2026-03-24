@@ -46,9 +46,7 @@
 
 Click the link below to duplicate the template into your Notion workspace:
 
-<!-- Replace the link below with your Notion template Duplicate link -->
-<!-- NOTION_TEMPLATE_LINK -->
-> 🔗 **Notion Template Link** — coming soon
+👉 [**Duplicate Notion Template**](https://aeolian-saga-950.notion.site/RSS-Hub-32c4c2f98bee8000b3e7e7fb4c0d644a) — click "Duplicate" in the top-right corner to add it to your Notion workspace.
 
 The template includes two databases:
 - **Subscription Database** — Manage your RSS feed sources
@@ -65,9 +63,8 @@ The template includes two databases:
 <!-- Screenshot: create integration -->
 <!-- SCREENSHOT: docs/images/integration.png -->
 
-3. Go to your **Subscription Database** page in Notion
+3. Go back to Notion, open both the **Subscription Database** and **Articles Database** pages
 4. Click `···` (top-right) → `Connect to` → select your Integration
-5. Repeat for the **Reading Database**
 
 > ⚠️ **Both databases must be connected to the Integration**, otherwise the program cannot read or write.
 
@@ -81,7 +78,7 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
                                      This 32-character segment is the Database ID
 ```
 
-- **Reading Database ID** → `NOTION_ENTRIES_DATABASE_ID`
+- **Articles Database ID** → `NOTION_ARTICLES_DATABASE_ID`
 - **Subscription Database ID** → `NOTION_FEEDS_DATABASE_ID`
 
 ### Step 4: Fork the Repository and Configure Secrets
@@ -93,7 +90,7 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 | Secret Name | Description |
 |------------|-------------|
 | `NOTION_API_KEY` | Notion Integration Token |
-| `NOTION_ENTRIES_DATABASE_ID` | Reading Database ID |
+| `NOTION_ARTICLES_DATABASE_ID` | Reading Database ID |
 | `NOTION_FEEDS_DATABASE_ID` | Subscription Database ID |
 
 <!-- Screenshot: GitHub Secrets configuration -->
@@ -124,7 +121,7 @@ After that, the sync will run automatically every hour.
 | Environment Variable | Required | Default | Description |
 |--------------------|:--------:|---------|-------------|
 | `NOTION_API_KEY` | ✅ | — | Notion Integration Token |
-| `NOTION_ENTRIES_DATABASE_ID` | ✅ | — | Reading Database ID |
+| `NOTION_ARTICLES_DATABASE_ID` | ✅ | — | Reading Database ID |
 | `NOTION_FEEDS_DATABASE_ID` | ✅ | — | Subscription Database ID |
 | `TIMEZONE` | — | `Asia/Shanghai` | IANA timezone name |
 | `CLEANUP_DAYS` | — | `30` | Unread article retention days; `-1` disables auto cleanup |
@@ -171,7 +168,7 @@ uv sync
 
 # Set environment variables
 export NOTION_API_KEY=your_token
-export NOTION_ENTRIES_DATABASE_ID=your_reading_db_id
+export NOTION_ARTICLES_DATABASE_ID=your_reading_db_id
 export NOTION_FEEDS_DATABASE_ID=your_subscription_db_id
 
 # Run
