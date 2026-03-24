@@ -13,9 +13,7 @@
 
 ---
 
-<!-- 截图区域：请将项目整体截图放置于此 -->
-<!-- SCREENSHOT: docs/images/overview.png -->
-> 📸 **截图待补充** — 效果图将在此展示
+![Overview](./docs/images/overview.png)
 
 ---
 
@@ -52,21 +50,20 @@
 - **订阅数据库** — 管理你的 RSS 订阅源
 - **阅读数据库** — 存放同步的文章
 
-<!-- 截图：模板效果图 -->
-<!-- SCREENSHOT: docs/images/template.png -->
+> ⚠️ **注意！不要修改 database 的 properties 的名称，否则会无法正常工作**
+
+![Template](./docs/images/template.png)
 
 ### 步骤 2：创建 Notion Integration
 
 1. 前往 [Notion Integrations](https://www.notion.so/profile/integrations) 创建一个新的 Integration
 2. 选择你的工作区，提交后获取 **Internal Integration Token**（即 `NOTION_API_KEY`）
 
-<!-- 截图：创建 Integration 示意图 -->
-<!-- SCREENSHOT: docs/images/integration.png -->
+![Integration](./docs/images/integration.png)
 
-3. 回到 Notion，分别进入 **订阅数据库** 和 **阅读数据库** 页面
-4. 点击右上角 `···` → `Connect to` → 选择你刚创建的 Integration
+3. 为 Integration 配置内容访问权限：
 
-> ⚠️ **两个数据库都需要连接 Integration**，否则程序无法读写。
+![Integration Permissions](./docs/images/integration_perm.png)
 
 ### 步骤 3：获取数据库 ID
 
@@ -87,14 +84,13 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 2. 进入你 Fork 后的仓库 → **Settings** → **Secrets and variables** → **Actions**
 3. 添加以下 **Repository Secrets**：
 
-| Secret 名称 | 说明 |
-|------------|------|
+| Secret 名称 | 说明                       |
+|------------|--------------------------|
 | `NOTION_API_KEY` | Notion Integration Token |
-| `NOTION_ARTICLES_DATABASE_ID` | 阅读数据库 ID |
-| `NOTION_FEEDS_DATABASE_ID` | 订阅数据库 ID |
+| `NOTION_ARTICLES_DATABASE_ID` | 文章数据库 ID                 |
+| `NOTION_FEEDS_DATABASE_ID` | 订阅数据库 ID                 |
 
-<!-- 截图：GitHub Secrets 配置示意图 -->
-<!-- SCREENSHOT: docs/images/secrets.png -->
+![Secrets](./docs/images/secrets.png)
 
 4. （可选）添加以下 **Repository Variables**（Settings → Secrets and variables → Actions → Variables）：
 
@@ -109,10 +105,17 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 2. 如果看到提示，点击 **I understand my workflows, go ahead and enable them**
 3. 左侧选择 **RSS Sync** → 点击 **Run workflow** 手动触发第一次同步
 
-<!-- 截图：手动触发 Actions 示意图 -->
-<!-- SCREENSHOT: docs/images/actions.png -->
+![Actions](./docs/images/action.png)
 
 之后每小时整点会自动运行。
+
+> **（可选）更改同步频率**
+> 编辑 `.github/workflows/sync.yml` 中的 cron 表达式：
+> ```yaml
+> - cron: '0 * * * *'  # 每小时整点
+> ```
+> 例如改为每 30 分钟：`'*/30 * * * *'`，每 6 小时：`'0 */6 * * *'`。
+> 可使用 [crontab.guru](https://crontab.guru/) 生成表达式。
 
 ---
 
@@ -180,7 +183,6 @@ uv run python -m rss2notion
 ## 🙏 致谢
 
 - [lcoolcool/notion-rss-reader](https://github.com/lcoolcool/notion-rss-reader) — 灵感参考
-- [lcoolcool/RSS-to-Notion](https://github.com/lcoolcool/RSS-to-Notion) — 灵感参考
 - [feedparser](https://github.com/kurtmckee/feedparser) — RSS 解析
 - [mistletoe](https://github.com/miyuchina/mistletoe) — Markdown AST 解析
 - [markdownify](https://github.com/matthewwithanm/python-markdownify) — HTML 转 Markdown

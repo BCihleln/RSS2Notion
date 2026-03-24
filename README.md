@@ -13,9 +13,7 @@ English | [简体中文](./README_ZH.md)
 
 ---
 
-<!-- Screenshot area: place your project overview screenshot here -->
-<!-- SCREENSHOT: docs/images/overview.png -->
-> 📸 **Screenshots coming soon**
+![Overview](./docs/images/overview.png)
 
 ---
 
@@ -52,21 +50,18 @@ The template includes two databases:
 - **Subscription Database** — Manage your RSS feed sources
 - **Reading Database** — Store synced articles
 
-<!-- Screenshot: template overview -->
-<!-- SCREENSHOT: docs/images/template.png -->
+![Template](./docs/images/template.png)
 
 ### Step 2: Create a Notion Integration
 
 1. Go to [Notion Integrations](https://www.notion.so/profile/integrations) and create a new Integration
 2. Select your workspace and submit — copy the **Internal Integration Token** (this is your `NOTION_API_KEY`)
 
-<!-- Screenshot: create integration -->
-<!-- SCREENSHOT: docs/images/integration.png -->
+![Integration](./docs/images/integration.png)
 
-3. Go back to Notion, open both the **Subscription Database** and **Articles Database** pages
-4. Click `···` (top-right) → `Connect to` → select your Integration
+3. Configure content access permissions for the Integration:
 
-> ⚠️ **Both databases must be connected to the Integration**, otherwise the program cannot read or write.
+![Integration Permissions](./docs/images/integration_perm.png)
 
 ### Step 3: Get Database IDs
 
@@ -93,8 +88,7 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 | `NOTION_ARTICLES_DATABASE_ID` | Reading Database ID |
 | `NOTION_FEEDS_DATABASE_ID` | Subscription Database ID |
 
-<!-- Screenshot: GitHub Secrets configuration -->
-<!-- SCREENSHOT: docs/images/secrets.png -->
+![Secrets](./docs/images/secrets.png)
 
 4. (Optional) Add the following **Repository Variables** (Settings → Secrets and variables → Actions → Variables):
 
@@ -109,10 +103,17 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 2. If prompted, click **I understand my workflows, go ahead and enable them**
 3. Select **RSS Sync** on the left → click **Run workflow** to trigger the first sync manually
 
-<!-- Screenshot: manually trigger Actions -->
-<!-- SCREENSHOT: docs/images/actions.png -->
+![Actions](./docs/images/action.png)
 
 After that, the sync will run automatically every hour.
+
+> **(Optional) Change the sync frequency**
+> Edit the cron expression in `.github/workflows/sync.yml`:
+> ```yaml
+> - cron: '0 * * * *'  # every hour
+> ```
+> For example: every 30 minutes — `'*/30 * * * *'`, every 6 hours — `'0 */6 * * *'`.
+> Use [crontab.guru](https://crontab.guru/) to generate expressions.
 
 ---
 
