@@ -19,7 +19,7 @@ class EntryFields:
     NAME = "Name"
     URL = "URL"
     PUBLISHED = "Published"
-    AUTHOR = "Author"
+    AUTHOR = "Author" # Not in use
     STATE = "State"
     TAGS = "Tags"
     SOURCE = "Source"

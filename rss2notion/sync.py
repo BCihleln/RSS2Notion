@@ -11,6 +11,7 @@ from .converter import entry_to_notion_blocks
 from .notion.client import NotionClient
 from .notion.cleanup import cleanup_expired_articles
 from .notion.subscription import fetch_active_subscriptions, update_subscription_status
+from .notion.schema import StatusValues
 from .rss import parse_rss
 
 log = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ def run(config: Config) -> None:
         except Exception as e:
             log.error(f"  RSS 解析失败: {e}")
             update_subscription_status(
-                client, subscription, status="Error", tz=config.timezone
+                client, subscription, status=StatusValues.ERROR, tz=config.timezone
             )
             continue
 
@@ -76,7 +77,7 @@ def run(config: Config) -> None:
             log.info("  没有新文章，跳过")
             update_subscription_status(
                 client, subscription,
-                status="Active",
+                status=StatusValues.ACTIVE,
                 tz=config.timezone,
                 feed_title=feed_result.feed_title,
             )
@@ -151,7 +152,7 @@ def run(config: Config) -> None:
 
         update_subscription_status(
             client, subscription,
-            status="Active",
+            status=StatusValues.ACTIVE,
             tz=config.timezone,
             feed_title=feed_result.feed_title,
         )

@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from ..models import Subscription
 from .client import NotionClient
-from .schema import SubscriptionFields, StatusValues
+from .schema import SubscriptionFields
 
 log = logging.getLogger(__name__)
 
