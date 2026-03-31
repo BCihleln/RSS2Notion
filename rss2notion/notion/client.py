@@ -81,39 +81,27 @@ class NotionClient:
         self,
         database_id: str,
         entry,
-        blocks: list[dict],
         source_page_id: str | None = None,
         extra_tags: list[str] | None = None,
+        blocks: list[dict] | None = None,
     ) -> dict:
-        """创建阅读数据库页面（全文模式）"""
-        merged_tags = _merge_tags(entry.tags, extra_tags or [])
-        properties = _build_entry_properties(entry, merged_tags, source_page_id)
-        payload: dict = {
-            "parent": {"database_id": database_id},
-            "properties": properties,
-            "children": blocks,
-        }
-        if entry.cover_image:
-            payload["cover"] = {
-                "type": "external",
-                "external": {"url": entry.cover_image},
-            }
-        return self._request("POST", "/pages", json=payload)
-
-    def create_page_metadata_only(
-        self,
-        database_id: str,
-        entry,
-        source_page_id: str | None = None,
-        extra_tags: list[str] | None = None,
-    ) -> dict:
-        """创建阅读数据库页面（仅元数据模式，FullTextEnabled=false 时使用）"""
+        """创建阅读数据库页面
+        
+        Args:
+            database_id: 数据库 ID
+            entry: RSS 条目对象
+            source_page_id: 订阅源页面 ID（可选）
+            extra_tags: 额外标签（可选）
+            blocks: Notion blocks 列表。若提供，则包含全文内容；否则仅保存元数据
+        """
         merged_tags = _merge_tags(entry.tags, extra_tags or [])
         properties = _build_entry_properties(entry, merged_tags, source_page_id)
         payload: dict = {
             "parent": {"database_id": database_id},
             "properties": properties,
         }
+        if blocks:
+            payload["children"] = blocks
         if entry.cover_image:
             payload["cover"] = {
                 "type": "external",

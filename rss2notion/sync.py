@@ -117,9 +117,9 @@ def run(config: Config) -> None:
                     page = client.create_page(
                         database_id=config.entries_database_id,
                         entry=entry,
-                        blocks=first_batch,
                         source_page_id=subscription.page_id,
                         extra_tags=subscription.tags,
+                        blocks=first_batch,
                     )
                     page_id = page["id"]
 
@@ -127,7 +127,7 @@ def run(config: Config) -> None:
                         client.append_blocks(page_id, rest_blocks)
                 else:
                     # 仅元数据模式
-                    page = client.create_page_metadata_only(
+                    page = client.create_page(
                         database_id=config.entries_database_id,
                         entry=entry,
                         source_page_id=subscription.page_id,
