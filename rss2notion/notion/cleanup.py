@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from .client import NotionClient
+from .schema import EntryFields, StateValues
 
 log = logging.getLogger(__name__)
 
@@ -36,11 +37,11 @@ def cleanup_expired_articles(
         "filter": {
             "and": [
                 {
-                    "property": "State",
-                    "select": {"equals": "Unread"},
+                    "property": EntryFields.STATE,
+                    "select": {"equals": StateValues.UNREAD},
                 },
                 {
-                    "property": "Published",
+                    "property": EntryFields.PUBLISHED,
                     "date": {"before": cutoff_iso},
                 },
             ]

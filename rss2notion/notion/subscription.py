@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from ..models import Subscription
 from .client import NotionClient
+from .schema import SubscriptionFields, StatusValues
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ def fetch_active_subscriptions(client: NotionClient, database_id: str) -> list[S
     """从订阅数据库读取所有 Disabled=false 的订阅（带分页）"""
     body: dict = {
         "filter": {
-            "property": "Disabled",
+            "property": SubscriptionFields.DISABLED,
             "checkbox": {"equals": False},
         },
         "page_size": 100,
@@ -55,13 +56,13 @@ def update_subscription_status(
     """
     now_iso = datetime.now(tz).isoformat()
     properties: dict = {
-        "Status":     {"select": {"name": status}},
-        "LastUpdate": {"date": {"start": now_iso}},
+        SubscriptionFields.STATUS:      {"select": {"name": status}},
+        SubscriptionFields.LAST_UPDATE: {"date": {"start": now_iso}},
     }
 
     # 空 Name 时自动回填
     if not subscription.name and feed_title:
-        properties["Name"] = {
+        properties[SubscriptionFields.NAME] = {
             "title": [{"text": {"content": feed_title[:2000]}}]
         }
 
@@ -81,34 +82,34 @@ def _parse_subscription(page: dict) -> Subscription | None:
     try:
         props = page.get("properties", {})
 
-        # Name（title 类型）
-        name_items = props.get("Name", {}).get("title", [])
-        name = "".join(item.get("plain_text", "") for item in name_items).strip()
-
         # URL（url 类型）
-        url = props.get("URL", {}).get("url") or ""
+        url = props.get(SubscriptionFields.URL, {}).get("url") or ""
         if not url:
             log.warning(f"订阅页面 {page['id']} 缺少 URL，跳过")
             return None
 
+        # Name（title 类型）
+        name_items = props.get(SubscriptionFields.NAME, {}).get("title", [])
+        name = "".join(item.get("plain_text", "") for item in name_items).strip()
+
         # Disabled（checkbox 类型）
-        disabled = props.get("Disabled", {}).get("checkbox", False)
+        disabled = props.get(SubscriptionFields.DISABLED, {}).get("checkbox", False)
 
         # FullTextEnabled（checkbox 类型）
-        full_text_enabled = props.get("FullTextEnabled", {}).get("checkbox", False)
+        full_text_enabled = props.get(SubscriptionFields.FULL_TEXT_ENABLED, {}).get("checkbox", False)
 
         # Status（select 类型）
-        status_obj = props.get("Status", {}).get("select") or {}
+        status_obj = props.get(SubscriptionFields.STATUS, {}).get("select") or {}
         status = status_obj.get("name", "")
 
         # LastUpdate（date 类型）
-        date_obj = props.get("LastUpdate", {}).get("date") or {}
+        date_obj = props.get(SubscriptionFields.LAST_UPDATE, {}).get("date") or {}
         last_update = date_obj.get("start")
 
         # Tags（multi_select 类型）
         tags = [
             t.get("name", "")
-            for t in props.get("Tags", {}).get("multi_select", [])
+            for t in props.get(SubscriptionFields.TAGS, {}).get("multi_select", [])
             if t.get("name")
         ]
 

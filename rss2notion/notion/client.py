@@ -7,6 +7,8 @@ import time
 
 import requests
 
+from .schema import EntryFields, StateValues
+
 log = logging.getLogger(__name__)
 
 
@@ -53,7 +55,7 @@ class NotionClient:
         existing_urls: set[str] = set()
         body = {
             "filter": {
-                "property": "Source",
+                "property": EntryFields.SOURCE,
                 "relation": {"contains": source_page_id},
             },
             "page_size": 100,
@@ -66,7 +68,7 @@ class NotionClient:
                 body["start_cursor"] = next_cursor
             result = self._request("POST", f"/databases/{database_id}/query", json=body)
             for page in result.get("results", []):
-                url_prop = page.get("properties", {}).get("URL", {})
+                url_prop = page.get("properties", {}).get(EntryFields.URL, {})
                 url = url_prop.get("url") or ""
                 if url:
                     existing_urls.add(url)
@@ -152,18 +154,18 @@ def _merge_tags(entry_tags: list[str], subscription_tags: list[str]) -> list[str
 def _build_entry_properties(entry, tags: list[str], source_page_id: str | None) -> dict:
     """构建阅读数据库页面的 properties"""
     properties: dict = {
-        "Name":      {"title": [{"text": {"content": entry.title[:2000]}}]},
-        "URL":       {"url": entry.url or None},
-        "Published": {"date": {"start": entry.published}},
-        "Author":    {"rich_text": [{"text": {"content": entry.author[:2000]}}]},
-        "State":     {"select": {"name": "Unread"}},
+        EntryFields.NAME:      {"title": [{"text": {"content": entry.title[:2000]}}]},
+        EntryFields.URL:       {"url": entry.url or None},
+        EntryFields.PUBLISHED: {"date": {"start": entry.published}},
+        # EntryFields.AUTHOR:    {"rich_text": [{"text": {"content": entry.author[:2000]}}]},
+        EntryFields.STATE:     {"select": {"name": StateValues.UNREAD}},
     }
     if tags:
-        properties["Tags"] = {
+        properties[EntryFields.TAGS] = {
             "multi_select": [{"name": t} for t in tags]
         }
     if source_page_id:
-        properties["Source"] = {
+        properties[EntryFields.SOURCE] = {
             "relation": [{"id": source_page_id}]
         }
     return properties
