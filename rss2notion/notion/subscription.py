@@ -106,12 +106,6 @@ def _parse_subscription(page: dict) -> Subscription | None:
         date_obj = props.get(SubscriptionFields.LAST_UPDATE, {}).get("date") or {}
         last_update = date_obj.get("start")
 
-        # Tags（multi_select 类型）
-        tags = [
-            t.get("name", "")
-            for t in props.get(SubscriptionFields.TAGS, {}).get("multi_select", [])
-            if t.get("name")
-        ]
 
         return Subscription(
             page_id=page["id"],
@@ -121,7 +115,6 @@ def _parse_subscription(page: dict) -> Subscription | None:
             full_text_enabled=full_text_enabled,
             status=status,
             last_update=last_update,
-            tags=tags,
         )
     except Exception as e:
         log.error(f"解析订阅页面失败 {page.get('id', '?')}: {e}")

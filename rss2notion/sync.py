@@ -118,7 +118,6 @@ def run(config: Config) -> None:
                         database_id=config.entries_database_id,
                         entry=entry,
                         source_page_id=subscription.page_id,
-                        extra_tags=subscription.tags,
                         blocks=first_batch,
                     )
                     page_id = page["id"]
@@ -131,7 +130,6 @@ def run(config: Config) -> None:
                         database_id=config.entries_database_id,
                         entry=entry,
                         source_page_id=subscription.page_id,
-                        extra_tags=subscription.tags,
                     )
                     page_id = page["id"]
 

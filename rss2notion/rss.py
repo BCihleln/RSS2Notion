@@ -74,8 +74,6 @@ def parse_rss(url: str, tz: ZoneInfo) -> FeedResult:
                 if enc.get("type", "").startswith("image/"):
                     entry_thumb = enc.get("url", "")
                     break
-
-        tags = [t.get("term", "") for t in getattr(e, "tags", [])]
         published = parse_date(e.get("published", ""), tz)
 
         entry = RSSEntry(
@@ -83,7 +81,6 @@ def parse_rss(url: str, tz: ZoneInfo) -> FeedResult:
             url=e.get("link", ""),
             published=published,
             author=e.get("author", ""),
-            tags=[t for t in tags if t],
             content_html=html_content,
             channel_image=channel_image,
         )

@@ -11,7 +11,6 @@ class SubscriptionFields:
     FULL_TEXT_ENABLED = "FullTextEnabled"
     STATUS = "Status"
     LAST_UPDATE = "LastUpdate"
-    TAGS = "Tags"
 
 
 class EntryFields:
@@ -21,7 +20,6 @@ class EntryFields:
     PUBLISHED = "Published"
     AUTHOR = "Author" # Not in use
     STATE = "State"
-    TAGS = "Tags"
     SOURCE = "Source"
 
 

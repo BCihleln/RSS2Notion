@@ -82,7 +82,6 @@ class NotionClient:
         database_id: str,
         entry,
         source_page_id: str | None = None,
-        extra_tags: list[str] | None = None,
         blocks: list[dict] | None = None,
     ) -> dict:
         """创建阅读数据库页面
@@ -91,11 +90,9 @@ class NotionClient:
             database_id: 数据库 ID
             entry: RSS 条目对象
             source_page_id: 订阅源页面 ID（可选）
-            extra_tags: 额外标签（可选）
             blocks: Notion blocks 列表。若提供，则包含全文内容；否则仅保存元数据
         """
-        merged_tags = _merge_tags(entry.tags, extra_tags or [])
-        properties = _build_entry_properties(entry, merged_tags, source_page_id)
+        properties = _build_entry_properties(entry, source_page_id)
         payload: dict = {
             "parent": {"database_id": database_id},
             "properties": properties,
@@ -127,19 +124,9 @@ class NotionClient:
 # 内部辅助函数
 # ─────────────────────────────────────────────
 
-def _merge_tags(entry_tags: list[str], subscription_tags: list[str]) -> list[str]:
-    """合并文章标签和订阅标签，去重保持顺序"""
-    seen: set[str] = set()
-    result = []
-    for tag in entry_tags + subscription_tags:
-        tag = tag[:100]  # Notion 选项名最长 100 字符
-        if tag and tag not in seen:
-            seen.add(tag)
-            result.append(tag)
-    return result[:100]  # 最多 100 个选项
-
-
-def _build_entry_properties(entry, tags: list[str], source_page_id: str | None) -> dict:
+def _build_entry_properties(
+        entry, 
+        source_page_id: str | None) -> dict:
     """构建阅读数据库页面的 properties"""
     properties: dict = {
         EntryFields.NAME:      {"title": [{"text": {"content": entry.title[:2000]}}]},
@@ -148,10 +135,6 @@ def _build_entry_properties(entry, tags: list[str], source_page_id: str | None) 
         # EntryFields.AUTHOR:    {"rich_text": [{"text": {"content": entry.author[:2000]}}]},
         EntryFields.STATE:     {"select": {"name": StateValues.UNREAD}},
     }
-    if tags:
-        properties[EntryFields.TAGS] = {
-            "multi_select": [{"name": t} for t in tags]
-        }
     if source_page_id:
         properties[EntryFields.SOURCE] = {
             "relation": [{"id": source_page_id}]

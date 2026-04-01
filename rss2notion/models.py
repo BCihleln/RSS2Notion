@@ -14,14 +14,10 @@ class RSSEntry:
     url: str
     published: str
     author: str
-    tags: list[str]
     content_html: str
-    # 频道级封面图（RSS <image> 标签），条目无图时兜底使用
-    channel_image: str = ""
-    # 解析后的「块列表」，每个块是 ("text", markdown字符串) 或 ("image", url)
-    blocks: list[tuple] = field(default_factory=list, init=False)
-    # 最终封面：优先取文章第一张图，没有则用频道图
-    cover_image: str = field(default="", init=False)
+    channel_image: str = "" # 频道级封面图（RSS <image> 标签），条目无图时兜底使用
+    blocks: list[tuple] = field(default_factory=list, init=False) # 解析后的「块列表」，每个块是 ("text", markdown字符串) 或 ("image", url)
+    cover_image: str = field(default="", init=False) # 最终封面：优先取文章第一张图，没有则用频道图
 
     def __post_init__(self):
         if self.content_html:
@@ -52,4 +48,3 @@ class Subscription:
     full_text_enabled: bool
     status: str                     # Active / Error
     last_update: Optional[str]      # ISO 日期，可为 None
-    tags: list[str]
