@@ -182,8 +182,18 @@ def _build_entry_properties(
         entry, 
         source_page_id: str | None) -> dict:
     """构建阅读数据库页面的 properties"""
+    # 构建标题，如果有 URL 則添加超鏈接
+    title_rich_text = {
+        "type": "text",
+        "text": {
+            "content": entry.title[:2000],
+        },
+    }
+    if entry.url:
+        title_rich_text["text"]["link"] = {"url": entry.url}
+    
     properties: dict = {
-        EntryFields.NAME:      {"title": [{"text": {"content": entry.title[:2000]}}]},
+        EntryFields.NAME:      {"title": [title_rich_text]},
         EntryFields.URL:       {"url": entry.url or None},
         EntryFields.PUBLISHED: {"date": {"start": entry.published}},
         EntryFields.STATE:     {"select": {"name": StateValues.UNREAD}},
