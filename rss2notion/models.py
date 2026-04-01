@@ -15,9 +15,9 @@ class RSSEntry:
     published: str
     author: str
     content_html: str
+    cover_image: str = "" # 最终封面：优先取文章第一张图，没有则用频道图
     channel_image: str = "" # 频道级封面图（RSS <image> 标签），条目无图时兜底使用
     blocks: list[tuple] = field(default_factory=list, init=False) # 解析后的「块列表」，每个块是 ("text", markdown字符串) 或 ("image", url)
-    cover_image: str = field(default="", init=False) # 最终封面：优先取文章第一张图，没有则用频道图
 
     def __post_init__(self):
         if self.content_html:
