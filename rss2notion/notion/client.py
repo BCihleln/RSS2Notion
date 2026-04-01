@@ -37,7 +37,7 @@ class NotionClient:
                 resp.raise_for_status()
                 return resp.json()
             except requests.HTTPError as e:
-                log.error(f"HTTP 错误 [{attempt}/{self.retry_times}]: {e.response.text}")
+                log.error(f"HTTP 错误 [{attempt}/{self.retry_times}]: {url} \n 錯誤訊息{e.response.text}")
                 if attempt == self.retry_times:
                     raise
                 time.sleep(self.retry_delay)
@@ -106,6 +106,10 @@ class NotionClient:
             }
         return self._request("POST", "/pages", json=payload)
 
+    def lock_page(self, page_id: str) -> None:
+        self._request("PATCH", f"/pages/{page_id}", json={"is_locked": True})
+
+
     def append_blocks(self, page_id: str, blocks: list[dict]) -> None:
         """分批追加 blocks（每批最多 100 个）"""
         for i in range(0, len(blocks), 100):
@@ -117,7 +121,7 @@ class NotionClient:
 
     def delete_page(self, page_id: str) -> dict:
         """将页面移入回收站（30 天内可在 Notion 回收站恢复）"""
-        return self._request("DELETE", f"/pages/{page_id}")
+        return self._request("PATCH", f"/pages/{page_id}", json={"in_trash": True})
 
 
 # ─────────────────────────────────────────────

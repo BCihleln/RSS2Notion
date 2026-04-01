@@ -131,6 +131,8 @@ def run(config: Config) -> None:
                         source_page_id=subscription.page_id,
                     )
                     page_id = page["id"]
+                
+                client.lock_page(page_id) # Auto lock to prevent accidental modification in database UI
 
                 log.info(f"    ✓ 写入: {page_id}")
                 existing_urls.add(entry.url)  # 防止同一次运行中重复写入
