@@ -47,17 +47,15 @@ def update_subscription_status(
     client: NotionClient,
     subscription: Subscription,
     status: str,
-    tz: ZoneInfo,
     feed_title: str | None = None,
 ) -> None:
     """
-    更新订阅的 Status 和 LastUpdate（始终更新为当前运行时间）。
+    更新订阅的 Status。
+    LastUpdate 則由 Notion 自動更新（始终更新为当前运行时间）
     如果订阅的 Name 为空且 feed_title 不为空，自动回填站点名。
     """
-    now_iso = datetime.now(tz).isoformat()
     properties: dict = {
         SubscriptionFields.STATUS:      {"select": {"name": status}},
-        SubscriptionFields.LAST_UPDATE: {"date": {"start": now_iso}},
     }
 
     # 空 Name 时自动回填
@@ -102,10 +100,8 @@ def _parse_subscription(page: dict) -> Subscription | None:
         status_obj = props.get(SubscriptionFields.STATUS, {}).get("select") or {}
         status = status_obj.get("name", "")
 
-        # LastUpdate（date 类型）
-        date_obj = props.get(SubscriptionFields.LAST_UPDATE, {}).get("date") or {}
-        last_update = date_obj.get("start")
-
+        # LastUpdate（last_edited_time 类型）
+        last_update = props.get(SubscriptionFields.LAST_UPDATE, {}).get("last_edited_time")
 
         return Subscription(
             page_id=page["id"],

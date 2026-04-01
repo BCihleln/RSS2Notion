@@ -47,7 +47,7 @@ def run(config: Config) -> None:
         except Exception as e:
             log.error(f"  RSS 解析失败: {e}")
             update_subscription_status(
-                client, subscription, status=StatusValues.ERROR, tz=config.timezone
+                client, subscription, status=StatusValues.ERROR
             )
             continue
 
@@ -78,7 +78,6 @@ def run(config: Config) -> None:
             update_subscription_status(
                 client, subscription,
                 status=StatusValues.ACTIVE,
-                tz=config.timezone,
                 feed_title=feed_result.feed_title,
             )
             continue
@@ -151,7 +150,6 @@ def run(config: Config) -> None:
         update_subscription_status(
             client, subscription,
             status=StatusValues.ACTIVE,
-            tz=config.timezone,
             feed_title=feed_result.feed_title,
         )
 
