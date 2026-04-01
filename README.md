@@ -137,9 +137,8 @@ After that, the sync will run automatically every hour.
 |----------|------|-------------|
 | `Name` | title | Feed name (auto-filled from RSS channel title if left empty) |
 | `URL` | url | RSS feed URL |
-| `Disabled` | checkbox | When checked, this subscription will be skipped |
 | `FullTextEnabled` | checkbox | When enabled, saves full article content; otherwise saves metadata only |
-| `Status` | select | Sync status: `Active` (success) / `Error` (failed) |
+| `Status` | select | Sync status: `Active` (success) / `Error` (failed) / `Disabled` (skipped) |
 | `LastUpdate` | date | Last sync time (maintained automatically) |
 | `Tags` | multi_select | Subscription-level tags, appended to all articles from this source |
 

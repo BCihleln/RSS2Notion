@@ -44,7 +44,6 @@ class Subscription:
     page_id: str
     name: str
     url: str
-    disabled: bool
     full_text_enabled: bool
     status: str                     # Active / Error
     last_update: Optional[str]      # ISO 日期，可为 None

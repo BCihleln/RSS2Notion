@@ -7,7 +7,6 @@ class SubscriptionFields:
     """订阅数据库字段名"""
     NAME =              "Feed Name"         # Read/Write 
     URL =               "URL"               # Read only
-    DISABLED =          "Disabled"          # Read only
     FULL_TEXT_ENABLED = "FullTextEnabled"   # Read only
     STATUS =            "Status"            # Read/Write 
     LAST_UPDATE =       "Updates"           # Read only, Notion database will update automatically
@@ -23,9 +22,11 @@ class EntryFields:
 
 
 class StatusValues:
-    """订阅状态值"""
-    ACTIVE =            "Active"    # Read only
-    ERROR =             "Error"     # Read only
+    """RSS Source (Feed) 订阅状态值"""
+    EMPTY =             ""          # Read only, Empty value of Status
+    ACTIVE =            "Active"    # Read only, Works well
+    ERROR =             "Error"     # Read only, Log Error Message into notion pages
+    DISABLED =         "Disabled"  # Read only, Disabled manually by user 
 
 
 class StateValues:

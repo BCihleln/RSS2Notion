@@ -139,9 +139,8 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 |--------|------|------|
 | `Name` | title | 订阅站点名（为空时自动填入 RSS 频道标题） |
 | `URL` | url | RSS 订阅链接 |
-| `Disabled` | checkbox | 勾选后该订阅不会被同步 |
 | `FullTextEnabled` | checkbox | 开启后保存完整正文；关闭则仅保存元数据 |
-| `Status` | select | 同步状态：`Active`（成功）/ `Error`（失败） |
+| `Status` | select | 同步状态：`Active`（成功）/ `Error`（失败）/ `Disabled`（已禁用） |
 | `LastUpdate` | date | 上次同步时间（自动维护） |
 | `Tags` | multi_select | 订阅级别标签，会附加到该订阅的所有文章 |
 
