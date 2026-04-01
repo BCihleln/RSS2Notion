@@ -31,14 +31,14 @@ def cleanup_expired_articles(
 
     cutoff = datetime.now(tz) - timedelta(days=cleanup_days)
     cutoff_iso = cutoff.isoformat()
-    log.info(f"清理 {cleanup_days} 天前的 Unread 文章（截止: {cutoff_iso[:10]}）")
+    log.info(f"清理 {cleanup_days} 天前的 未星號 文章（截止: {cutoff_iso[:10]}）")
 
     body: dict = {
         "filter": {
             "and": [
                 {
                     "property": EntryFields.STATE,
-                    "select": {"equals": StateValues.UNREAD},
+                    "select": {"does_not_equal": StateValues.STARRED},
                 },
                 {
                     "property": EntryFields.PUBLISHED,

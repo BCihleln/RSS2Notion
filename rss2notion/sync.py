@@ -47,7 +47,7 @@ def run(config: Config) -> None:
         except Exception as e:
             log.error(f"  RSS 解析失败: {e}")
             update_subscription_status(
-                client, subscription, status=StatusValues.ERROR
+                client, subscription, status=StatusValues.ERROR, error_msg=str(e)
             )
             continue
 
@@ -62,19 +62,19 @@ def run(config: Config) -> None:
             cutoff = f"{date_part}T00:00:00{tz_part}"
             before_filter = len(entries)
             entries = [e for e in entries if e.published >= cutoff]
-            log.info(f"  时间粗筛（{date_part} 起）：{before_filter} → {len(entries)} 条")
+            log.info(f"   时间粗筛（{date_part} 起）：{before_filter} → {len(entries)} 条")
         elif config.cleanup_days >= 0:
             # 首次运行：默认只导入 cleanup_days 天内的文章，避免历史数据全量涌入
             cutoff = (datetime.now(config.timezone) - timedelta(days=config.cleanup_days)).isoformat()
             before_filter = len(entries)
             entries = [e for e in entries if e.published >= cutoff]
-            log.info(f"  首次运行，导入最近 {config.cleanup_days} 天：{before_filter} → {len(entries)} 条")
+            log.info(f"   首次运行，导入最近 {config.cleanup_days} 天：{before_filter} → {len(entries)} 条")
         else:
             # cleanup_days=-1：首次运行写入全部历史数据
-            log.info(f"  首次运行，导入全部历史数据（{len(entries)} 条）")
+            log.info(f"   首次运行，导入全部历史数据（{len(entries)} 条）")
 
         if not entries:
-            log.info("  没有新文章，跳过")
+            log.info("   没有新文章，跳过")
             update_subscription_status(
                 client, subscription,
                 status=StatusValues.ACTIVE,
@@ -88,14 +88,15 @@ def run(config: Config) -> None:
             existing_urls = client.query_pages_by_source(
                 config.entries_database_id, subscription.page_id
             )
-            log.info(f"  已存在 {len(existing_urls)} 条记录（用于去重）")
+            log.info(f"   已存在 {len(existing_urls)} 条记录（用于去重）")
         except Exception as e:
-            log.warning(f"  批量去重查询失败，将逐条跳过: {e}")
+            log.warning(f"   批量去重查询失败，将逐条跳过: {e}")
 
         written = skipped = failed = 0
+        failed_entries = []  # 收集失败的文章信息（标题 + 错误消息）
 
         for idx, entry in enumerate(entries, 1):
-            log.info(f"  [{idx}/{len(entries)}] {entry.title[:60]}")
+            log.info(f"   [{idx}/{len(entries)}] {entry.title[:60]}")
 
             # URL 去重
             if entry.url and entry.url in existing_urls:
@@ -140,19 +141,43 @@ def run(config: Config) -> None:
 
             except Exception as e:
                 log.error(f"    ✗ 写入失败: {e}")
+                failed_entries.append({
+                    "title": entry.title[:60],
+                    "error": str(e)[:100],  # 截断错误消息
+                })
                 failed += 1
 
             time.sleep(0.4)  # 控制 Notion API 速率
 
-        log.info(f"  订阅完成 — 写入: {written}  跳过: {skipped}  失败: {failed}")
+        log.info(f"   订阅完成 — 写入: {written}  跳过: {skipped}  失败: {failed}")
         total_written += written
         total_skipped += skipped
         total_failed += failed
 
+        # 处理文章写入失败情况
+        subscription_status = StatusValues.ACTIVE
+        error_msg = None
+        
+        if failed > 0:
+            # 汇总失败的文章信息
+            error_summary = f"文章写入失败 ({failed}/{len(entries)})"
+            for entry_info in failed_entries[:3]:  # 最多显示前 3 个失败
+                error_summary += f"\n- {entry_info['title']}: {entry_info['error']}"
+            if len(failed_entries) > 3:
+                error_summary += f"\n... 等 {len(failed_entries) - 3} 个失败"
+            
+            error_msg = error_summary
+            
+            # 全部失败则设置 Status 为 ERROR
+            if written == 0 and failed > 0:
+                subscription_status = StatusValues.ERROR
+        
+        # 更新订阅状态，若有失败信息则记录到 Notion
         update_subscription_status(
             client, subscription,
-            status=StatusValues.ACTIVE,
+            status=subscription_status,
             feed_title=feed_result.feed_title,
+            error_msg=error_msg,
         )
 
     # 自动清理过期文章

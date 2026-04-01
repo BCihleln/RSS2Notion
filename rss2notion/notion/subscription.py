@@ -3,22 +3,20 @@
 """
 
 import logging
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from ..models import Subscription
 from .client import NotionClient
-from .schema import SubscriptionFields
+from .schema import SubscriptionFields, StatusValues
 
 log = logging.getLogger(__name__)
 
 
 def fetch_active_subscriptions(client: NotionClient, database_id: str) -> list[Subscription]:
-    """从订阅数据库读取所有 Disabled=false 的订阅（带分页）"""
+    """从订阅数据库读取所有 Status 不为 'Disabled' 的订阅（带分页）"""
     body: dict = {
         "filter": {
-            "property": SubscriptionFields.DISABLED,
-            "checkbox": {"equals": False},
+            "property": SubscriptionFields.STATUS,
+            "select": {"does_not_equal": StatusValues.DISABLED},
         },
         "page_size": 100,
     }
@@ -48,11 +46,13 @@ def update_subscription_status(
     subscription: Subscription,
     status: str,
     feed_title: str | None = None,
+    error_msg: str | None = None,
 ) -> None:
     """
     更新订阅的 Status。
     LastUpdate 則由 Notion 自動更新（始终更新为当前运行时间）
     如果订阅的 Name 为空且 feed_title 不为空，自动回填站点名。
+    如果 error_msg 不为空，将错误信息追加为 Notion Callout block 到订阅页面。
     """
     properties: dict = {
         SubscriptionFields.STATUS:      {"select": {"name": status}},
@@ -69,6 +69,10 @@ def update_subscription_status(
         f"/pages/{subscription.page_id}",
         json={"properties": properties},
     )
+    
+    # 若有错误消息，追加错误块到订阅页面
+    if error_msg:
+        client.append_error_block(subscription.page_id, error_msg)
 
 
 # ─────────────────────────────────────────────
@@ -90,9 +94,6 @@ def _parse_subscription(page: dict) -> Subscription | None:
         name_items = props.get(SubscriptionFields.NAME, {}).get("title", [])
         name = "".join(item.get("plain_text", "") for item in name_items).strip()
 
-        # Disabled（checkbox 类型）
-        disabled = props.get(SubscriptionFields.DISABLED, {}).get("checkbox", False)
-
         # FullTextEnabled（checkbox 类型）
         full_text_enabled = props.get(SubscriptionFields.FULL_TEXT_ENABLED, {}).get("checkbox", False)
 
@@ -107,7 +108,6 @@ def _parse_subscription(page: dict) -> Subscription | None:
             page_id=page["id"],
             name=name,
             url=url,
-            disabled=disabled,
             full_text_enabled=full_text_enabled,
             status=status,
             last_update=last_update,

@@ -123,10 +123,60 @@ class NotionClient:
         """将页面移入回收站（30 天内可在 Notion 回收站恢复）"""
         return self._request("PATCH", f"/pages/{page_id}", json={"in_trash": True})
 
+    def append_error_block(self, page_id: str, error_msg: str) -> None:
+        """追加错误 Callout 块到页面（用于记录订阅失败或文章写入失败）
+        
+        Args:
+            page_id: 目标页面 ID
+            error_msg: 错误信息（直接使用异常消息字符串）
+        """
+        try:
+            block = _build_error_block(error_msg)
+            self.append_blocks(page_id, [block])
+            log.info(f"✓ 错误块已记录到页面 {page_id}")
+        except Exception as e:
+            log.warning(f"✗ 错误块写入失败（不影响主流程）: {e}")
+
 
 # ─────────────────────────────────────────────
 # 内部辅助函数
 # ─────────────────────────────────────────────
+
+def _build_error_block(error_msg: str) -> dict:
+    """生成 Notion Callout block（⚠️ 红色背景）
+    
+    Args:
+        error_msg: 错误消息字符串
+        
+    Returns:
+        符合 Notion Block 规范的字典
+    """
+    # 截断超长消息（Notion paragraph content 限制 2000 字符）
+    max_length = 2000
+    if len(error_msg) > max_length:
+        error_msg = error_msg[:max_length - 5] + "...[截断]"
+    
+    return {
+        "object": "block",
+        "type": "callout",
+        "callout": {
+            "rich_text": [
+                {
+                    "type": "text",
+                    "text": {
+                        "content": error_msg,
+                        "link": None,
+                    },
+                }
+            ],
+            "icon": {
+                "type": "emoji",
+                "emoji": "⚠️",
+            },
+            "color": "red_background",
+        },
+    }
+
 
 def _build_entry_properties(
         entry, 
@@ -136,7 +186,6 @@ def _build_entry_properties(
         EntryFields.NAME:      {"title": [{"text": {"content": entry.title[:2000]}}]},
         EntryFields.URL:       {"url": entry.url or None},
         EntryFields.PUBLISHED: {"date": {"start": entry.published}},
-        # EntryFields.AUTHOR:    {"rich_text": [{"text": {"content": entry.author[:2000]}}]},
         EntryFields.STATE:     {"select": {"name": StateValues.UNREAD}},
     }
     if source_page_id:

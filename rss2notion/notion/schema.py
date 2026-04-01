@@ -33,4 +33,4 @@ class StateValues:
     """文章状态值"""
     UNREAD =            "Unread"    # Read only
     READING =           "Reading"   # Read only
-    STARRED =           "Starred"   # Read only
+    STARRED =           "Star"      # Read only

@@ -79,17 +79,16 @@ def _parse_entry_published(entry:dict, tz:ZoneInfo, feed_updated_tuple: tuple) -
 
 def parse_rss(url: str, tz: ZoneInfo) -> FeedResult:
     """解析 RSS feed，返回频道标题和条目列表"""
-    log.info(f"解析 RSS: {url}")
+    log.info(f"   解析 RSS: {url}")
     parse_result = feedparser.parse(url)
 
     # 如果有 bozo 错误但没有 entries，无法继续
     if parse_result.bozo:
         if parse_result.entries:
-            log.warning(f"RSS 解析有错误但成功提取 {len(parse_result.entries)} 条条目: {parse_result.bozo_exception}")
+            log.warning(f"RSS 解析異常，但成功提取 {len(parse_result.entries)} 条条目: {parse_result.bozo_exception}")
         else:
-            log.info(f"Parsed Fields : {parse_result.keys()}")
-            log.info(f"Parsed Entry Fields : {parse_result.entries[0].keys()}")
-            raise ValueError(f"RSS 解析异常，无条目可提取: {parse_result.bozo_exception}")
+            log.warning(f"Parsed Fields : {parse_result.keys()}")
+            raise ValueError(f"RSS 解析失敗，无条目可提取: {parse_result.bozo_exception}")
 
     feed_title = parse_result.feed.get("title", "")
 
@@ -118,5 +117,5 @@ def parse_rss(url: str, tz: ZoneInfo) -> FeedResult:
         )
         parsed_entries.append(rss_entry)
 
-    log.info(f"获取到 {len(parsed_entries)} 条条目，频道: {feed_title or url}")
+    log.info(f"   获取到 {len(parsed_entries)} 条条目，频道: {feed_title or url}")
     return FeedResult(feed_title=feed_title, entries=parsed_entries)
