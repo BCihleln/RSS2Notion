@@ -93,7 +93,7 @@ def update_subscription_status(
 def _parse_subscription(page: dict) -> Subscription | None:
     """将 Notion 页面对象解析为 Subscription"""
     try:
-        props = page.get("properties", {})
+        props:dict = page.get("properties", {})
 
         # URL（url 类型）
         url = props.get(SubscriptionFields.URL, {}).get("url", "")
@@ -116,7 +116,8 @@ def _parse_subscription(page: dict) -> Subscription | None:
 
         # Status（select 类型）
         status_obj = props.get(SubscriptionFields.STATUS, {}).get("select", {})
-        status = status_obj.get("name", "")
+        status = ""
+        if status_obj: status = status_obj.get("name")
 
         # LastUpdate（last_edited_time 类型，返回 ISO 8601 格式的字符串）
         last_update = props.get(SubscriptionFields.LAST_UPDATE, {}).get("last_edited_time", "")
