@@ -7,7 +7,12 @@ dependencies = [
     "feedparser>=6.0",
     "requests>=2.32",
     "beautifulsoup4>=4.12",
+    "tzdata>=2024.1",
+    "python-dotenv>=1.0",
 ]
+
+[tool.pyright]
+ignore = ["feedparser"]  # 忽略 feedparser 库的类型检查
 
 [project.scripts]
 rss2notion = "rss2notion.__main__:main"
