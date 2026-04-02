@@ -11,11 +11,19 @@ from .schema import SubscriptionFields, StatusValues
 log = logging.getLogger(__name__)
 
 def fetch_active_subscriptions(client: NotionClient, database_id: str) -> list[Subscription]:
-    """从订阅数据库读取所有 Status 為 Active 的 page """
+    """从订阅数据库读取所有 Status 為 Active/Empty 的 Page """
     body: dict = {
         "filter": {
-            "property": SubscriptionFields.STATUS,
-            "select": {"equals": StatusValues.ACTIVE},
+            "or":[
+                {
+                    "property": SubscriptionFields.STATUS,
+                    "select": {"is_empty": True},
+                },
+                {
+                    "property": SubscriptionFields.STATUS,
+                    "select": {"equals": StatusValues.ACTIVE},
+                }
+            ]
         },
         "page_size": 100,
     }
