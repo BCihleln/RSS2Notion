@@ -6,9 +6,6 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from dotenv import load_dotenv
-# Explicitly load .env file from project root
-load_dotenv(dotenv_path=os.path.join(project_root, '.env'))
 
 if sys.platform.startswith('win'):
     try:

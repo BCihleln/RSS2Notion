@@ -7,6 +7,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 
+
 from .utils.config import Config
 from .utils.html2notion_block import html_to_notion_blocks
 

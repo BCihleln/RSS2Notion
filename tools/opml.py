@@ -302,9 +302,7 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# 加载 .env 文件
-from dotenv import load_dotenv
-load_dotenv()
+# 加载 .env
 config = Config.from_env()
 
 opml_file_path = r"feed.opml"

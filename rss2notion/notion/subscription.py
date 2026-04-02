@@ -92,17 +92,24 @@ def _parse_subscription(page: dict) -> Subscription | None:
     try:
         props:dict = page.get("properties", {})
 
+        # DEBUG
+        # log.info(f" page.keys( : {page.keys(}"))
+        # log.info(f"所有属性: {props.keys()}")  # 看看有哪些属性，便於處理 Database 類型不同的情況
+
         # URL（url 类型）
         url = props.get(SubscriptionFields.URL, {}).get("url", "")
         if not url:
             log.warning(f"订阅页面 {page['url']} 缺少 URL，跳过")
             return None
+        # log.info(f"url: {url}")
         
         # Page Icon
         icon = page.get("icon", {})
+        # log.info(f" icon : {icon}")
 
         # Page Image
         image = page.get("cover", {})
+        # log.info(f" image : {image}")
 
         # Name（title 类型）
         name_items = props.get(SubscriptionFields.NAME, {}).get("title", [])
@@ -113,6 +120,7 @@ def _parse_subscription(page: dict) -> Subscription | None:
         status_obj = props.get(SubscriptionFields.STATUS, {}).get("select", {})
         status = ""
         if status_obj: status = status_obj.get("name")
+        # log.info(f" status : {status}")
 
         # LastUpdate（last_edited_time 类型，返回 ISO 8601 格式的字符串）
         last_update = props.get(SubscriptionFields.LAST_UPDATE, {}).get("last_edited_time", "")
@@ -120,6 +128,10 @@ def _parse_subscription(page: dict) -> Subscription | None:
         # Filterout Keywords (multi_select 類型)
         filterout_keywords_tags:list[dict] = props.get(SubscriptionFields.FILTERLIST, {}).get("multi_select", [])
         filterout_keywords = [tag.get('name') for tag in filterout_keywords_tags]
+
+        #DEBUG
+        # log.info(f"subscription last update : {last_update}")
+        #DEBUG
 
         # Cleanup Days（number 類型）；空值保留 None，表示沿用全局值
         cleanup_days_raw = props.get(SubscriptionFields.CLEANUP_DAYS, {}).get("number", None)
