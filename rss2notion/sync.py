@@ -52,23 +52,14 @@ def run(config: Config) -> None:
             continue
 
         entries = feed_result.entries
+        before_filter = len(entries)
 
         # 时间粗筛：减少进入 URL 去重阶段的条目数
-        if subscription.last_update:
-            # 非首次运行：取 LastUpdate 当天零点作为边界，配合 URL 去重保证正确性
-            # 截断到天而非精确时间，使当天内写入失败的文章下次仍可重试
-            date_part = subscription.last_update[:10]
-            tz_part = subscription.last_update[19:] if len(subscription.last_update) > 19 else ""
-            cutoff = f"{date_part}T00:00:00{tz_part}"
-            before_filter = len(entries)
+        if config.cleanup_days >= 0:
+            # 默认只导入 cleanup_days 天内的文章，避免历史数据全量涌入
+            cutoff = (datetime.now(config.timezone) - timedelta(days=config.cleanup_days)).replace(hour=0,minute=0,second=0, microsecond=0)
             entries = [e for e in entries if e.published >= cutoff]
-            log.info(f"   时间粗筛（{date_part} 起）：{before_filter} → {len(entries)} 条")
-        elif config.cleanup_days >= 0:
-            # 首次运行：默认只导入 cleanup_days 天内的文章，避免历史数据全量涌入
-            cutoff = (datetime.now(config.timezone) - timedelta(days=config.cleanup_days)).isoformat()
-            before_filter = len(entries)
-            entries = [e for e in entries if e.published >= cutoff]
-            log.info(f"   首次运行，导入最近 {config.cleanup_days} 天：{before_filter} → {len(entries)} 条")
+            log.info(f"   导入最近 {config.cleanup_days} 天的文章 (自 {cutoff})：{before_filter} → {len(entries)} 条")
         else:
             # cleanup_days=-1：首次运行写入全部历史数据
             log.info(f"   首次运行，导入全部历史数据（{len(entries)} 条）")
@@ -135,7 +126,7 @@ def run(config: Config) -> None:
                 
                 client.lock_page(page_id) # Auto lock to prevent accidental modification in database UI
 
-                log.info(f"    ✓ 写入: {page_id}")
+                log.info(f"    ✓ 写入: {page['url']}")
                 existing_urls.add(entry.url)  # 防止同一次运行中重复写入
                 written += 1
 
@@ -149,7 +140,7 @@ def run(config: Config) -> None:
 
             time.sleep(0.4)  # 控制 Notion API 速率
 
-        log.info(f"   订阅完成 — 写入: {written}  跳过: {skipped}  失败: {failed}")
+        log.info(f"订阅完成 — 写入: {written}  跳过: {skipped}  失败: {failed}")
         total_written += written
         total_skipped += skipped
         total_failed += failed

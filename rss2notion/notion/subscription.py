@@ -16,7 +16,7 @@ def fetch_active_subscriptions(client: NotionClient, database_id: str) -> list[S
     body: dict = {
         "filter": {
             "property": SubscriptionFields.STATUS,
-            "select": {"does_not_equal": StatusValues.DISABLED},
+            "select": {"equals": StatusValues.ACTIVE},
         },
         "page_size": 100,
     }
@@ -101,7 +101,7 @@ def _parse_subscription(page: dict) -> Subscription | None:
         status_obj = props.get(SubscriptionFields.STATUS, {}).get("select") or {}
         status = status_obj.get("name", "")
 
-        # LastUpdate（last_edited_time 类型）
+        # LastUpdate（last_edited_time 类型，返回 ISO 8601 格式的字符串）
         last_update = props.get(SubscriptionFields.LAST_UPDATE, {}).get("last_edited_time")
 
         return Subscription(

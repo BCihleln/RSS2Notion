@@ -7,34 +7,12 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import feedparser
+from time import struct_time
 
 from .models import RSSEntry, FeedResult
 
 log = logging.getLogger(__name__)
 
-
-def _time_struct_to_iso(time_struct: tuple, tz: ZoneInfo) -> str:
-    """将 feedparser 规范化的时间元组转换为 ISO 格式字符串（时区感知）
-    
-    feedparser 返回的 published_parsed/updated_parsed 是 time.struct_time，
-    已在 UTC 时区。此函数将其转换到指定时区的 ISO 格式。
-    
-    Args:
-        time_struct: time.struct_time (6-9 元素的元组)
-        tz: 目标时区
-    
-    Returns:
-        ISO 格式字符串，如 "2026-03-31T10:30:45+08:00"；失败时返回空字符串
-    """
-    if time_struct is None:
-        return ""
-    try:
-        # time.struct_time 的前 6 个元素是 (year, month, day, hour, minute, second)
-        dt = datetime(*time_struct[:6], tzinfo=timezone.utc)
-        return dt.astimezone(tz).isoformat()
-    except (ValueError, TypeError, IndexError) as e:
-        log.warning(f"时间转换失败: {e}")
-        return ""
 
 def _parse_entry_content(entry:dict) -> str:
     # 提取正文内容：优先取 HTML，否则用 summary
@@ -63,19 +41,14 @@ def _parse_entry_thumbnail(entry:dict)-> str:
                 break
     return entry_thumb
 
-def _parse_entry_published(entry:dict, tz:ZoneInfo, feed_updated_tuple: tuple) -> str:
+def _parse_entry_published(entry:dict, feed_updated_tuple: struct_time) -> datetime:
     """
     提取发布日期：优先 published_parsed，再试 updated_parsed，
     都没有则 fallback 到 feed 更新时间，最后为空字符串（不用 datetime.now()）
     """
-    published = ""
-    published_tuple = entry.get("published_parsed") or entry.get("updated_parsed")
-    if published_tuple:
-        published = _time_struct_to_iso(published_tuple, tz)
-    else:
-        log.warning(f"条目无发布时间，使用 feed 更新时间 : {entry.keys()}")
-        published = _time_struct_to_iso(feed_updated_tuple, tz)
-    return published
+    tuple:struct_time = entry.get("published_parsed") or entry.get("updated_parsed") or feed_updated_tuple
+
+    return datetime(tuple.tm_year, tuple.tm_mon, tuple.tm_mday, tuple.tm_hour, tuple.tm_min, tuple.tm_sec, tzinfo=timezone.utc)
 
 def parse_rss(url: str, tz: ZoneInfo) -> FeedResult:
     """解析 RSS feed，返回频道标题和条目列表"""
@@ -102,14 +75,14 @@ def parse_rss(url: str, tz: ZoneInfo) -> FeedResult:
         channel_image = parse_result.feed.get("icon", "")
     
     # feedparser 的 feed.updated_parsed 用作日期缺失时的备用
-    feed_updated_tuple = parse_result.feed.get("updated_parsed")
+    feed_updated_tuple:struct_time = parse_result.feed.get("updated_parsed")
 
     parsed_entries = []
     for entry in parse_result.entries:
         rss_entry = RSSEntry(
             title           = entry.get("title", "No Title"),
             url             = entry.get("link", ""),
-            published       = _parse_entry_published(entry, tz, feed_updated_tuple),
+            published       = _parse_entry_published(entry, feed_updated_tuple),
             author          = entry.get("author", ""),
             content_html    = _parse_entry_content(entry),
             cover_image     = _parse_entry_thumbnail(entry),

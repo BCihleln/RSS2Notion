@@ -3,7 +3,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
+from datetime import datetime
 
 from .converter import split_html_to_blocks
 
@@ -12,7 +12,7 @@ from .converter import split_html_to_blocks
 class RSSEntry:
     title: str
     url: str
-    published: str
+    published: datetime
     author: str
     content_html: str
     cover_image: str = "" # 最终封面：优先取文章第一张图，没有则用频道图
@@ -45,5 +45,5 @@ class Subscription:
     name: str
     url: str
     full_text_enabled: bool
-    status: str                     # Active / Error
-    last_update: Optional[str]      # ISO 日期，可为 None
+    status: str                     # Active / Error /Disabled
+    last_update: datetime           # ISO 日期，可为 None

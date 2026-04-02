@@ -2,6 +2,7 @@
 Notion API 基础客户端
 """
 
+from ..models import RSSEntry 
 import logging
 import time
 
@@ -133,9 +134,9 @@ class NotionClient:
         try:
             block = _build_error_block(error_msg)
             self.append_blocks(page_id, [block])
-            log.info(f"✓ 错误块已记录到页面 {page_id}")
+            log.info(f"   ✓ 错误块已记录到页面 {page_id}")
         except Exception as e:
-            log.warning(f"✗ 错误块写入失败（不影响主流程）: {e}")
+            log.warning(f"   ✗ 错误块写入失败（不影响主流程）: {e}")
 
 
 # ─────────────────────────────────────────────
@@ -179,7 +180,7 @@ def _build_error_block(error_msg: str) -> dict:
 
 
 def _build_entry_properties(
-        entry, 
+        entry: RSSEntry, 
         source_page_id: str | None) -> dict:
     """构建阅读数据库页面的 properties"""
     # 构建标题，如果有 URL 則添加超鏈接
@@ -195,7 +196,7 @@ def _build_entry_properties(
     properties: dict = {
         EntryFields.NAME:      {"title": [title_rich_text]},
         EntryFields.URL:       {"url": entry.url or None},
-        EntryFields.PUBLISHED: {"date": {"start": entry.published}},
+        EntryFields.PUBLISHED: {"date": {"start": entry.published.isoformat()}},
         EntryFields.STATE:     {"select": {"name": StateValues.UNREAD}},
     }
     if source_page_id:
