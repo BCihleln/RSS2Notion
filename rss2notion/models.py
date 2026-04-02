@@ -35,6 +35,7 @@ class RSSEntry:
 class FeedResult:
     """parse_rss 的返回值"""
     feed_title: str
+    feed_icon_url: str
     entries: list[RSSEntry]
 
 
@@ -44,6 +45,8 @@ class Subscription:
     page_id: str
     name: str
     url: str
+    icon: dict | None
+    channel_image: str | None
     full_text_enabled: bool
     status: str                     # Active / Error /Disabled
     last_update: datetime           # ISO 日期，可为 None

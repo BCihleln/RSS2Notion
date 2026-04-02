@@ -10,9 +10,8 @@ from .schema import SubscriptionFields, StatusValues
 
 log = logging.getLogger(__name__)
 
-
 def fetch_active_subscriptions(client: NotionClient, database_id: str) -> list[Subscription]:
-    """从订阅数据库读取所有 Status 不为 'Disabled' 的订阅（带分页）"""
+    """从订阅数据库读取所有 Status 為 Active 的 page """
     body: dict = {
         "filter": {
             "property": SubscriptionFields.STATUS,
@@ -46,6 +45,7 @@ def update_subscription_status(
     subscription: Subscription,
     status: str,
     feed_title: str | None = None,
+    feed_icon_url: str | None = None,
     error_msg: str | None = None,
 ) -> None:
     """
@@ -54,20 +54,31 @@ def update_subscription_status(
     如果订阅的 Name 为空且 feed_title 不为空，自动回填站点名。
     如果 error_msg 不为空，将错误信息追加为 Notion Callout block 到订阅页面。
     """
-    properties: dict = {
-        SubscriptionFields.STATUS:      {"select": {"name": status}},
+    body: dict = {
+        "properties": {
+            SubscriptionFields.STATUS:      {"select": {"name": status}},
+        }
     }
 
     # 空 Name 时自动回填
     if not subscription.name and feed_title:
-        properties[SubscriptionFields.NAME] = {
+        log.info(f"   新增訂閱 名稱 : {feed_title}")
+        body["properties"][SubscriptionFields.NAME] = {
             "title": [{"text": {"content": feed_title[:2000]}}]
         }
+
+    # 空 ICON 時自動回填
+    if not subscription.icon and feed_icon_url:
+        log.info(f"   新增訂閱 icon : {feed_icon_url}")
+        body["icon"] = {
+            "type": "external", 
+            "external": { "url": feed_icon_url}
+        } 
 
     client._request(
         "PATCH",
         f"/pages/{subscription.page_id}",
-        json={"properties": properties},
+        json=body,
     )
     
     # 若有错误消息，追加错误块到订阅页面
@@ -85,10 +96,16 @@ def _parse_subscription(page: dict) -> Subscription | None:
         props = page.get("properties", {})
 
         # URL（url 类型）
-        url = props.get(SubscriptionFields.URL, {}).get("url") or ""
+        url = props.get(SubscriptionFields.URL, {}).get("url", "")
         if not url:
-            log.warning(f"订阅页面 {page['id']} 缺少 URL，跳过")
+            log.warning(f"订阅页面 {page['url']} 缺少 URL，跳过")
             return None
+        
+        # Page Icon
+        icon = page.get("icon", {})
+
+        # Page Image
+        image = page.get("cover", {})
 
         # Name（title 类型）
         name_items = props.get(SubscriptionFields.NAME, {}).get("title", [])
@@ -98,16 +115,18 @@ def _parse_subscription(page: dict) -> Subscription | None:
         full_text_enabled = props.get(SubscriptionFields.FULL_TEXT_ENABLED, {}).get("checkbox", False)
 
         # Status（select 类型）
-        status_obj = props.get(SubscriptionFields.STATUS, {}).get("select") or {}
+        status_obj = props.get(SubscriptionFields.STATUS, {}).get("select", {})
         status = status_obj.get("name", "")
 
         # LastUpdate（last_edited_time 类型，返回 ISO 8601 格式的字符串）
-        last_update = props.get(SubscriptionFields.LAST_UPDATE, {}).get("last_edited_time")
+        last_update = props.get(SubscriptionFields.LAST_UPDATE, {}).get("last_edited_time", "")
 
         return Subscription(
             page_id=page["id"],
             name=name,
             url=url,
+            icon=icon,
+            channel_image=image, 
             full_text_enabled=full_text_enabled,
             status=status,
             last_update=last_update,

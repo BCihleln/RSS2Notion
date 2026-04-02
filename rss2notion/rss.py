@@ -4,12 +4,12 @@ RSS 解析：获取订阅条目
 
 import logging
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 
 import feedparser
 from time import struct_time
 
-from .models import RSSEntry, FeedResult
+from .models import RSSEntry, FeedResult, Subscription
+from .get_favicon import get_website_favicon
 
 log = logging.getLogger(__name__)
 
@@ -50,10 +50,10 @@ def _parse_entry_published(entry:dict, feed_updated_tuple: struct_time) -> datet
 
     return datetime(tuple.tm_year, tuple.tm_mon, tuple.tm_mday, tuple.tm_hour, tuple.tm_min, tuple.tm_sec, tzinfo=timezone.utc)
 
-def parse_rss(url: str, tz: ZoneInfo) -> FeedResult:
+def parse_rss(subscirption: Subscription) -> FeedResult:
     """解析 RSS feed，返回频道标题和条目列表"""
-    log.info(f"   解析 RSS: {url}")
-    parse_result = feedparser.parse(url)
+    log.info(f"   解析 RSS: {subscirption.url}")
+    parse_result = feedparser.parse(subscirption.url)
 
     # 如果有 bozo 错误但没有 entries，无法继续
     if parse_result.bozo:
@@ -64,15 +64,22 @@ def parse_rss(url: str, tz: ZoneInfo) -> FeedResult:
             raise ValueError(f"RSS 解析失敗，无条目可提取: {parse_result.bozo_exception}")
 
     feed_title = parse_result.feed.get("title", "")
+    feed_icon_url = ""
 
-    # 提取频道级封面图：依次尝试 image.url → logo → icon（Atom 格式）
     channel_image = ""
-    if hasattr(parse_result.feed, "image"):
-        channel_image = parse_result.feed.image.get("href", "")
-    elif hasattr(parse_result.feed, "logo"):
-        channel_image = parse_result.feed.logo
-    else: 
-        channel_image = parse_result.feed.get("icon", "")
+    if not subscirption.channel_image:
+        # 提取频道级封面图：依次尝试 image.url → logo → icon（Atom 格式）
+        if hasattr(parse_result.feed, "image"):
+            channel_image = parse_result.feed.image.get("href", "")
+        elif hasattr(parse_result.feed, "logo"):
+            channel_image = feed_icon_url = parse_result.feed.logo
+        else: 
+            channel_image = feed_icon_url = parse_result.feed.get("icon", "")
+
+    if not subscirption.icon and feed_icon_url:
+        log.info(f"   RSS 內無法取得 icon，嘗試獲取域名 favicon")
+        feed_icon_url = get_website_favicon(parse_result.feed.get('link'))
+        log.info(f"   已取得 : {feed_icon_url}")
     
     # feedparser 的 feed.updated_parsed 用作日期缺失时的备用
     feed_updated_tuple:struct_time = parse_result.feed.get("updated_parsed")
@@ -80,15 +87,19 @@ def parse_rss(url: str, tz: ZoneInfo) -> FeedResult:
     parsed_entries = []
     for entry in parse_result.entries:
         rss_entry = RSSEntry(
-            title           = entry.get("title", "No Title"),
-            url             = entry.get("link", ""),
+            title           = str(entry.get("title", "No Title")),
+            url             = str(entry.get("link", "")),
             published       = _parse_entry_published(entry, feed_updated_tuple),
-            author          = entry.get("author", ""),
+            author          = str(entry.get("author", "")),
             content_html    = _parse_entry_content(entry),
             cover_image     = _parse_entry_thumbnail(entry),
             channel_image   = channel_image,
         )
         parsed_entries.append(rss_entry)
 
-    log.info(f"   获取到 {len(parsed_entries)} 条条目，频道: {feed_title or url}")
-    return FeedResult(feed_title=feed_title, entries=parsed_entries)
+    log.info(f"   获取到 {len(parsed_entries)} 条条目，频道: {feed_title or subscirption.url}")
+    return FeedResult(
+        feed_title=feed_title, 
+        feed_icon_url=feed_icon_url,
+        entries=parsed_entries
+        )
