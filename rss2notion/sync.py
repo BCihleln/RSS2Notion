@@ -98,33 +98,28 @@ def run(config: Config) -> None:
                 continue
 
             try:
+                # 默認獲取 Feed 内提供的 content 或 summery 内容
+                all_blocks = entry_to_notion_blocks(entry)
+                first_batch = all_blocks[:config.notion_block_limit]
+                rest_blocks = all_blocks[config.notion_block_limit:]
+
+                img_count = sum(1 for b in all_blocks if b.get("type") == "image")
+                log.info(f"    blocks: {len(all_blocks)} 个（含 {img_count} 张图片）")
+
+                page = client.create_page(
+                    database_id=config.entries_database_id,
+                    entry=entry,
+                    source_page_id=subscription.page_id,
+                    blocks=first_batch,
+                )
+                page_id = page["id"]
+
+                if rest_blocks:
+                    client.append_blocks(page_id, rest_blocks)
+
                 if subscription.full_text_enabled:
-                    # 全文模式
-                    all_blocks = entry_to_notion_blocks(entry)
-                    first_batch = all_blocks[:config.notion_block_limit]
-                    rest_blocks = all_blocks[config.notion_block_limit:]
-
-                    img_count = sum(1 for b in all_blocks if b.get("type") == "image")
-                    log.info(f"    blocks: {len(all_blocks)} 个（含 {img_count} 张图片）")
-
-                    page = client.create_page(
-                        database_id=config.entries_database_id,
-                        entry=entry,
-                        source_page_id=subscription.page_id,
-                        blocks=first_batch,
-                    )
-                    page_id = page["id"]
-
-                    if rest_blocks:
-                        client.append_blocks(page_id, rest_blocks)
-                else:
-                    # 仅元数据模式
-                    page = client.create_page(
-                        database_id=config.entries_database_id,
-                        entry=entry,
-                        source_page_id=subscription.page_id,
-                    )
-                    page_id = page["id"]
+                    # TODO: 進階獲取網頁全文模式
+                    pass
                 
                 client.lock_page(page_id) # Auto lock to prevent accidental modification in database UI
 
