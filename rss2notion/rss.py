@@ -76,7 +76,7 @@ def parse_rss(subscirption: Subscription) -> FeedResult:
         else: 
             channel_image = feed_icon_url = parse_result.feed.get("icon", "")
 
-    if not subscirption.icon and feed_icon_url:
+    if not subscirption.icon or feed_icon_url:
         log.info(f"   RSS 內無法取得 icon，嘗試獲取域名 favicon")
         feed_icon_url = get_website_favicon(parse_result.feed.get('link'))
         log.info(f"   已取得 : {feed_icon_url}")
