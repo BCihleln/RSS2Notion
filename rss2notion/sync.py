@@ -78,7 +78,7 @@ def run(config: Config) -> None:
             existing_urls = client.query_pages_by_source(
                 config.entries_database_id, subscription.page_id
             )
-            log.info(f"   已存在 {len(existing_urls)} 条记录（用于去重）")
+            log.debug(f"   已存在 {len(existing_urls)} 条记录（用于去重）")
         except Exception as e:
             log.warning(f"   批量去重查询失败，将逐条跳过: {e}")
 
@@ -136,7 +136,10 @@ def run(config: Config) -> None:
 
             time.sleep(0.4)  # 控制 Notion API 速率
 
-        log.info(f"订阅完成 — 写入: {written}  跳过: {skipped}  失败: {failed}")
+        write_msg = f"寫入: {written}" if written>0 else ""
+        skip_msg = f"跳過重複: {skipped}" if skipped>0 else ""
+        failed_msg = f"失敗: {failed}" if failed>0 else ""
+        log.info(f"    訂閲完成 — {write_msg}  {skip_msg}  {failed_msg}")
         total_written += written
         total_skipped += skipped
         total_failed += failed
