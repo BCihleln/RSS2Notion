@@ -4,8 +4,6 @@
 
 import logging
 
-from dotenv import load_dotenv
-
 from .utils.config import Config
 from .sync import run
 
