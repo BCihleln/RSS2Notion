@@ -90,5 +90,5 @@ def fetch_success(client: NotionClient, subscription: Subscription) -> None:
 
     update_subscription_status(
         client, subscription,
-        status=StatusValues.ACTIVE,
+        status=None, # dev for testing the same feed without changing state
     )
