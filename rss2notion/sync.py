@@ -69,8 +69,6 @@ def run(config: Config) -> None:
             update_subscription_status(
                 client, subscription,
                 status=StatusValues.ACTIVE,
-                feed_title=feed_result.feed_title,
-                feed_icon_url=feed_result.feed_icon_url,
             )
             continue
 
@@ -104,7 +102,7 @@ def run(config: Config) -> None:
                 rest_blocks = all_blocks[config.notion_block_limit:]
 
                 img_count = sum(1 for b in all_blocks if b.get("type") == "image")
-                log.info(f"    blocks: {len(all_blocks)} 个（含 {img_count} 张图片）")
+                log.debug(f"    blocks: {len(all_blocks)} 个（含 {img_count} 张图片）")
 
                 page = client.create_page(
                     database_id=config.entries_database_id,
@@ -165,8 +163,6 @@ def run(config: Config) -> None:
         update_subscription_status(
             client, subscription,
             status=subscription_status,
-            feed_title=feed_result.feed_title,
-            feed_icon_url=feed_result.feed_icon_url,
             error_msg=error_msg,
         )
 

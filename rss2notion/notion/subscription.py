@@ -52,8 +52,6 @@ def update_subscription_status(
     client: NotionClient,
     subscription: Subscription,
     status: str,
-    feed_title: str | None = None,
-    feed_icon_url: str | None = None,
     error_msg: str | None = None,
 ) -> None:
     """
@@ -68,20 +66,6 @@ def update_subscription_status(
         }
     }
 
-    # 空 Name 时自动回填
-    if not subscription.name and feed_title:
-        log.info(f"   新增訂閱 名稱 : {feed_title}")
-        body["properties"][SubscriptionFields.NAME] = {
-            "title": [{"text": {"content": feed_title[:2000]}}]
-        }
-
-    # 空 ICON 時自動回填
-    if not subscription.icon and feed_icon_url:
-        log.info(f"   新增訂閱 icon : {feed_icon_url}")
-        body["icon"] = {
-            "type": "external", 
-            "external": { "url": feed_icon_url}
-        } 
 
     client._request(
         "PATCH",

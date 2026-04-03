@@ -63,9 +63,6 @@ def parse_rss(subscirption: Subscription) -> FeedResult:
             log.warning(f"Parsed Fields : {parse_result.keys()}")
             raise ValueError(f"RSS 解析失敗，无条目可提取: {parse_result.bozo_exception}")
 
-    feed_title = parse_result.feed.get("title", "")
-    feed_icon_url = ""
-
     channel_image = ""
     if not subscirption.channel_image:
         # 提取频道级封面图：依次尝试 image.url → logo → icon（Atom 格式）
@@ -75,11 +72,6 @@ def parse_rss(subscirption: Subscription) -> FeedResult:
             channel_image = feed_icon_url = parse_result.feed.logo
         else: 
             channel_image = feed_icon_url = parse_result.feed.get("icon", "")
-
-    if not subscirption.icon or feed_icon_url:
-        log.info(f"   RSS 內無法取得 icon，嘗試獲取域名 favicon")
-        feed_icon_url = get_website_favicon(parse_result.feed.get('link'))
-        log.info(f"   已取得 : {feed_icon_url}")
     
     # feedparser 的 feed.updated_parsed 用作日期缺失时的备用
     feed_updated_tuple:struct_time = parse_result.feed.get("updated_parsed")
@@ -97,9 +89,7 @@ def parse_rss(subscirption: Subscription) -> FeedResult:
         )
         parsed_entries.append(rss_entry)
 
-    log.info(f"   获取到 {len(parsed_entries)} 条条目，频道: {feed_title or subscirption.url}")
+    log.debug(f"   获取到 {len(parsed_entries)} 条条目，频道: {subscirption.name}")
     return FeedResult(
-        feed_title=feed_title, 
-        feed_icon_url=feed_icon_url,
         entries=parsed_entries
         )

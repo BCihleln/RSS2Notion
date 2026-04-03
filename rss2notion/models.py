@@ -34,8 +34,6 @@ class RSSEntry:
 @dataclass
 class FeedResult:
     """parse_rss 的返回值"""
-    feed_title: str
-    feed_icon_url: str
     entries: list[RSSEntry]
 
 
