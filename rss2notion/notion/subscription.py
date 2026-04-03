@@ -23,10 +23,10 @@ def get_avaliable_subscriptions(
                     "property": SubscriptionFields.STATUS,
                     "select": {"is_empty": True},
                 },
-                {
-                    "property": SubscriptionFields.STATUS,
-                    "select": {"equals": StatusValues.ACTIVE},
-                }
+                # {
+                #     "property": SubscriptionFields.STATUS,
+                #     "select": {"equals": StatusValues.ACTIVE},
+                # }
             ]
         },
         "page_size": 100,
