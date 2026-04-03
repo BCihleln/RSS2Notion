@@ -4,7 +4,9 @@
 
 import logging
 
-from .config import Config
+from dotenv import load_dotenv
+
+from .utils.config import Config
 from .sync import run
 
 # 日志配置

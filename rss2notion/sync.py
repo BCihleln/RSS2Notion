@@ -6,8 +6,8 @@ import logging
 import time
 from datetime import datetime, timedelta
 
-from .config import Config
-from .converter import entry_to_notion_blocks
+from .utils.config import Config
+from .utils.converter import entry_to_notion_blocks
 from .notion.client import NotionClient
 from .notion.cleanup import cleanup_expired_articles
 from .notion.subscription import fetch_active_subscriptions, update_subscription_status

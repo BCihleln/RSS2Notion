@@ -17,6 +17,10 @@ def get_website_favicon(site_url):
     except Exception as e:
         raise ValueError(f"網站 icon 解析異常 : {e}")
 
+# ──────────────────────────────────────────────
+# 測試運行
+# ──────────────────────────────────────────────
+
 # import feedparser
 # result = feedparser.parse("https://rss.csdn.net/datawhale/rss/map")
 # print(result.keys())

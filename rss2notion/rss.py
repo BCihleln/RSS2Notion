@@ -9,7 +9,7 @@ import feedparser
 from time import struct_time
 
 from .models import RSSEntry, FeedResult, Subscription
-from .get_favicon import get_website_favicon
+from .utils.get_favicon import get_website_favicon
 
 log = logging.getLogger(__name__)
 

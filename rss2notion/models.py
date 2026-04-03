@@ -5,7 +5,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from .converter import split_html_to_blocks
+from .utils.converter import split_html_to_blocks
 
 
 @dataclass
