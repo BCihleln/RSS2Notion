@@ -62,7 +62,7 @@ def run(config: Config) -> None:
             log.info(f"   导入最近 {config.cleanup_days} 天的文章 (自 {cutoff})：{before_filter} → {len(entries)} 条")
         else:
             # cleanup_days=-1：首次运行写入全部历史数据
-            log.info(f"   首次运行，导入全部历史数据（{len(entries)} 条）")
+            log.info(f"   导入全部历史数据（{len(entries)} 条）")
 
         if not entries:
             log.info("   没有新文章，跳过")
@@ -171,8 +171,8 @@ def run(config: Config) -> None:
         )
 
     # 自动清理过期文章
-    cleanup_expired_articles(client, config.entries_database_id, config.cleanup_days, config.timezone)
+    delete_count = cleanup_expired_articles(client, config.entries_database_id, config.cleanup_days+1, config.timezone)
 
     log.info(
-        f"\n全部完成 — 写入: {total_written}  跳过: {total_skipped}  失败: {total_failed}"
+        f"\n全部完成 — 写入: {total_written}  跳过: {total_skipped}  失败: {total_failed}  刪除: {delete_count}"
     )

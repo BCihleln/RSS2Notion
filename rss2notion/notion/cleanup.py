@@ -20,7 +20,7 @@ def cleanup_expired_articles(
     tz: ZoneInfo,
 ) -> int:
     """
-    清理 State=Unread 且 Published 超过 cleanup_days 天的文章。
+    清理 State!=STARRED 且 Published 超过 cleanup_days 天的文章。
     cleanup_days=-1 时跳过清理。
     删除操作实为移入 Notion 回收站（30 天内可恢复）。
     返回删除数量。
@@ -29,9 +29,9 @@ def cleanup_expired_articles(
         log.info("自动清理已禁用（CLEANUP_DAYS=-1）")
         return 0
 
-    cutoff = datetime.now(tz) - timedelta(days=cleanup_days)
+    cutoff = (datetime.now(tz) - timedelta(days=cleanup_days)).replace(hour=0, minute=0, second=0, microsecond=0)
     cutoff_iso = cutoff.isoformat()
-    log.info(f"清理 {cleanup_days} 天前的 未星號 文章（截止: {cutoff_iso[:10]}）")
+    log.info(f"清理 {cleanup_days} 天前的 未星號 文章（截止: {cutoff}）")
 
     body: dict = {
         "filter": {
