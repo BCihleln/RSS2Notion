@@ -88,11 +88,12 @@ def run(config: Config) -> None:
         failed_entries = []  # 收集失败的文章信息（标题 + 错误消息）
 
         for idx, entry in enumerate(entries, 1):
-            log.info(f"   [{idx}/{len(entries)}] {entry.title[:60]}")
+            entry_info_text = f"   [{idx}/{len(entries)}] {entry.title[:60]}"
+            log.debug(entry_info_text)
 
             # URL 去重
             if entry.url and entry.url in existing_urls:
-                log.info("    → 已存在，跳过")
+                log.debug("    → 已存在，跳过")
                 skipped += 1
                 continue
 
@@ -127,7 +128,8 @@ def run(config: Config) -> None:
                 
                 client.lock_page(page_id) # Auto lock to prevent accidental modification in database UI
 
-                log.info(f"    ✓ 写入: {page['url']}")
+                log.info(f"    ✓ 写入: {entry.title}")
+                log.info(f"    ------- {page['url']}")
                 existing_urls.add(entry.url)  # 防止同一次运行中重复写入
                 written += 1
 
