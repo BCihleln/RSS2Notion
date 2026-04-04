@@ -24,4 +24,5 @@ build-backend = "hatchling.build"
 dev = [
     "pytest>=8.0",
     "python-dotenv>=1.0",
+    "curl_cffi"
 ]

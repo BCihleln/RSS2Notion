@@ -268,6 +268,15 @@ uv run python tools/opml.py
 # 在 tools/opml.py 中取消註解 export_opml 那行，再執行同一指令
 ```
 
+### 測試輔助工具
+
+如果某些 RSS 訂閱源無法正常拉取，你可以使用測試腳本來診斷多階段網路回退或解析問題：
+
+```bash
+# 編輯 tools/test_feeds.py 修改 urls 列表，然後執行：
+uv run python tools/test_feeds.py
+```
+
 ---
 
 ## 🙏 致謝

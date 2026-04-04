@@ -265,7 +265,16 @@ uv run python -m rss2notion
 uv run python tools/opml.py
 
 # Export all subscriptions to backup.opml
-# Uncomment the export_opml line in tools/opml.py, then run the same command
+# Uncomment the export_opml line in tools/opml.py and run the same command
+```
+
+### Testing Auxiliary Tools
+
+If some RSS feeds fail to fetch, you can use the test script to diagnose multi-stage network fallback or parsing issues:
+
+```bash
+# Edit tools/test_feeds.py to modify the urls list, then run:
+uv run python tools/test_feeds.py
 ```
 
 ---
