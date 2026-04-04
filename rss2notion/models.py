@@ -42,3 +42,4 @@ class Subscription:
     full_text_enabled: bool
     status: str                     # Active / Error /Disabled
     last_update: datetime           # ISO 日期
+    accumulated_errors: list[dict]

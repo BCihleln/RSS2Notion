@@ -17,6 +17,7 @@ class Config:
     notion_block_limit: int = 100      # 首批写入 block 上限
     retry_times: int = 3
     retry_delay: float = 2.0
+    mark_err_threshold: int = 10       # 累积错误块数量达到该阈值时，才将订阅状态升级为 Error
 
     @classmethod
     def from_env(cls) -> "Config":

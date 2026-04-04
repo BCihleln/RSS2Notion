@@ -37,7 +37,8 @@ def get_avaliable_subscriptions(client: NotionClient, database_id: str) -> list[
         result = client._request("POST", f"/databases/{database_id}/query", json=body)
 
         for page in result.get("results", []):
-            sub = _parse_subscription(page)
+            page_blocks = client.get_block_children(page["id"])
+            sub = _parse_subscription(page, page_blocks)
             if sub:
                 subscriptions.append(sub)
 
@@ -51,29 +52,32 @@ def get_avaliable_subscriptions(client: NotionClient, database_id: str) -> list[
 def update_subscription_status(
     client: NotionClient,
     subscription: Subscription,
-    status: str,
+    status: str | None,
     error_msg: str | None = None,
 ) -> None:
     """
     更新订阅的 Status。
-    LastUpdate 則由 Notion 自動更新（始终更新为当前运行时间）
-    如果订阅的 Name 为空且 feed_title 不为空，自动回填站点名。
-    如果 error_msg 不为空，将错误信息追加为 Notion Callout block 到订阅页面。
+    Args:
+        client:       NotionClient 实例
+        subscription: 目标订阅对象
+        status:       新状态值（StatusValues 常量）；传入 None 或空字符串则清空 select
+        error_msg:    若不为 None，将错误信息以带时间戳的 Callout 块追加到订阅页面
     """
+    # status 为 None / "" 时清空 select（用于"暂时出错但未达阈值"场景）
+    if status:
+        status_value: dict | None = {"name": status}
+    else:
+        status_value = None
+
     body: dict = {
         "properties": {
-            SubscriptionFields.STATUS:      {"select": {"name": status}},
+            SubscriptionFields.STATUS: {"select": status_value},
         }
     }
 
+    client._request("PATCH", f"/pages/{subscription.page_id}", json=body)
 
-    client._request(
-        "PATCH",
-        f"/pages/{subscription.page_id}",
-        json=body,
-    )
-    
-    # 若有错误消息，追加错误块到订阅页面
+    # 若有错误消息，追加带时间戳的错误块到订阅页面
     if error_msg:
         client.append_error_block(subscription.page_id, error_msg)
 
@@ -82,7 +86,7 @@ def update_subscription_status(
 # 内部辅助函数
 # ─────────────────────────────────────────────
 
-def _parse_subscription(page: dict) -> Subscription | None:
+def _parse_subscription(page: dict, page_blocks: list[dict]) -> Subscription | None:
     """将 Notion 页面对象解析为 Subscription"""
     try:
         props:dict = page.get("properties", {})
@@ -120,6 +124,8 @@ def _parse_subscription(page: dict) -> Subscription | None:
         for tag in filterout_keywords_tags: 
             filterout_keywords.append(tag.get('name'))
 
+        # 篩選出累積的錯誤塊
+        error_blocks = [b for b in page_blocks if b.get("type") == "callout"]
 
         return Subscription(
             page_id=page["id"],
@@ -130,6 +136,7 @@ def _parse_subscription(page: dict) -> Subscription | None:
             full_text_enabled=full_text_enabled,
             status=status,
             last_update=last_update,
+            accumulated_errors=error_blocks,
             filterout_keywords=filterout_keywords
         )
     except Exception as e:

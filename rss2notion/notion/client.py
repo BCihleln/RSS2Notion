@@ -5,12 +5,16 @@ Notion API 基础客户端
 from ..models import RSSEntry 
 import logging
 import time
+from datetime import datetime, timezone
 
 import requests
 
 from .schema import EntryFields, StateValues
 
 log = logging.getLogger(__name__)
+
+# 用于识别错误 Callout 块的标志 emoji
+_ERROR_BLOCK_EMOJI = "⚠️"
 
 
 class NotionClient:
@@ -36,6 +40,9 @@ class NotionClient:
                     time.sleep(wait)
                     continue
                 resp.raise_for_status()
+                # DELETE 返回 200 且无 body，直接返回空 dict
+                if resp.status_code == 200 and not resp.content:
+                    return {}
                 return resp.json()
             except requests.HTTPError as e:
                 log.error(f"HTTP 错误 [{attempt}/{self.retry_times}]: {url} \n 錯誤訊息{e.response.text}")
@@ -124,15 +131,43 @@ class NotionClient:
         """将页面移入回收站（30 天内可在 Notion 回收站恢复）"""
         return self._request("PATCH", f"/pages/{page_id}", json={"in_trash": True})
 
+    # ─────────────────────────────────────────────
+    # 错误块管理
+    # ─────────────────────────────────────────────
+
+    def get_block_children(self, block_id: str) -> list[dict]:
+        """获取页面/块的直接子块列表（支持分页）"""
+        blocks: list[dict] = []
+        has_more = True
+        next_cursor = None
+
+        while has_more:
+            params: dict = {"page_size": 100}
+            if next_cursor:
+                params["start_cursor"] = next_cursor
+
+            result = self._request("GET", f"/blocks/{block_id}/children", params=params)
+            blocks.extend(result.get("results", []))
+
+            has_more = result.get("has_more", False)
+            next_cursor = result.get("next_cursor")
+
+        return blocks
+
+    def delete_block(self, block_id: str) -> None:
+        """删除单个块（移入回收站）"""
+        self._request("DELETE", f"/blocks/{block_id}")
+
     def append_error_block(self, page_id: str, error_msg: str) -> None:
-        """追加错误 Callout 块到页面（用于记录订阅失败或文章写入失败）
-        
+        """追加带时间戳的错误 Callout 块到页面。
+
         Args:
             page_id: 目标页面 ID
-            error_msg: 错误信息（直接使用异常消息字符串）
+            error_msg: 错误信息字符串
         """
         try:
-            block = _build_error_block(error_msg)
+            ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            block = _build_error_block(error_msg, timestamp=ts)
             self.append_blocks(page_id, [block])
             log.info(f"   ✓ 错误块已记录到页面 {page_id}")
         except Exception as e:
@@ -143,20 +178,27 @@ class NotionClient:
 # 内部辅助函数
 # ─────────────────────────────────────────────
 
-def _build_error_block(error_msg: str) -> dict:
-    """生成 Notion Callout block（⚠️ 红色背景）
-    
+def _build_error_block(error_msg: str, timestamp: str | None = None) -> dict:
+    """生成带时间戳的 Notion Callout block（⚠️ 红色背景）
+
     Args:
         error_msg: 错误消息字符串
-        
+        timestamp: 可读时间戳字符串，如 "2025-01-01 12:00 UTC"
+
     Returns:
         符合 Notion Block 规范的字典
     """
     # 截断超长消息（Notion paragraph content 限制 2000 字符）
+    # 拼接时间戳前缀
+    if timestamp:
+        full_msg = f"[{timestamp}] {error_msg}"
+    else:
+        full_msg = error_msg
+
     max_length = 2000
-    if len(error_msg) > max_length:
-        error_msg = error_msg[:max_length - 5] + "...[截断]"
-    
+    if len(full_msg) > max_length:
+        full_msg = full_msg[:max_length - 5] + "...[截断]"
+
     return {
         "object": "block",
         "type": "callout",
@@ -165,14 +207,14 @@ def _build_error_block(error_msg: str) -> dict:
                 {
                     "type": "text",
                     "text": {
-                        "content": error_msg,
+                        "content": full_msg,
                         "link": None,
                     },
                 }
             ],
             "icon": {
                 "type": "emoji",
-                "emoji": "⚠️",
+                "emoji": _ERROR_BLOCK_EMOJI,
             },
             "color": "red_background",
         },
