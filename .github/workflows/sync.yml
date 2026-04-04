@@ -2,7 +2,7 @@ name: RSS Sync
 
 on:
   schedule:
-    - cron: '0 * * * *'   # 每小时整点运行
+    - cron: '0 */8 * * *'   # 每 8 小时的整点运行
   workflow_dispatch:        # 支持手动触发
 
 jobs:
