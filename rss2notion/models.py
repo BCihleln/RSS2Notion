@@ -30,13 +30,6 @@ class RSSEntry:
         if not self.cover_image:
             self.cover_image = self.channel_image
 
-
-@dataclass
-class FeedResult:
-    """parse_rss 的返回值"""
-    entries: list[RSSEntry]
-
-
 @dataclass
 class Subscription:
     """对应 Notion 订阅数据库中的一行"""
@@ -45,6 +38,7 @@ class Subscription:
     url: str
     icon: dict | None
     channel_image: str | None
+    filterout_keywords: list
     full_text_enabled: bool
     status: str                     # Active / Error /Disabled
-    last_update: datetime           # ISO 日期，可为 None
+    last_update: datetime           # ISO 日期

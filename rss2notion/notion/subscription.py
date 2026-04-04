@@ -114,6 +114,13 @@ def _parse_subscription(page: dict) -> Subscription | None:
         # LastUpdate（last_edited_time 类型，返回 ISO 8601 格式的字符串）
         last_update = props.get(SubscriptionFields.LAST_UPDATE, {}).get("last_edited_time", "")
 
+        # Filterout Keywords (multi_select 類型)
+        filterout_keywords_tags:list[dict] = props.get(SubscriptionFields.FILTERLIST, {}).get("multi_select", [])
+        filterout_keywords = []
+        for tag in filterout_keywords_tags: 
+            filterout_keywords.append(tag.get('name'))
+
+
         return Subscription(
             page_id=page["id"],
             name=name,
@@ -123,6 +130,7 @@ def _parse_subscription(page: dict) -> Subscription | None:
             full_text_enabled=full_text_enabled,
             status=status,
             last_update=last_update,
+            filterout_keywords=filterout_keywords
         )
     except Exception as e:
         log.error(f"解析订阅页面失败 {page.get('id', '?')}: {e}")

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import feedparser
 from time import struct_time
 
-from .models import RSSEntry, FeedResult, Subscription
+from .models import RSSEntry, Subscription
 from .utils.get_favicon import get_website_favicon
 
 log = logging.getLogger(__name__)
@@ -50,8 +50,8 @@ def _parse_entry_published(entry:dict, feed_updated_tuple: struct_time) -> datet
 
     return datetime(tuple.tm_year, tuple.tm_mon, tuple.tm_mday, tuple.tm_hour, tuple.tm_min, tuple.tm_sec, tzinfo=timezone.utc)
 
-def parse_rss(subscirption: Subscription) -> FeedResult:
-    """解析 RSS feed，返回频道标题和条目列表"""
+def parse_rss(subscirption: Subscription) -> list[RSSEntry]:
+    """解析 RSS feed，返回条目列表"""
     log.debug(f"   解析 RSS: {subscirption.url}")
     parse_result = feedparser.parse(subscirption.url)
 
@@ -90,6 +90,4 @@ def parse_rss(subscirption: Subscription) -> FeedResult:
         parsed_entries.append(rss_entry)
 
     log.debug(f"   获取到 {len(parsed_entries)} 条条目，频道: {subscirption.name}")
-    return FeedResult(
-        entries=parsed_entries
-        )
+    return parsed_entries

@@ -14,7 +14,7 @@ from .notion.subscription import get_avaliable_subscriptions, update_subscriptio
 from .notion.schema import StatusValues
 from .rss import parse_rss
 
-from .models import FeedResult, Subscription
+from .models import Subscription, RSSEntry
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 log = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def run(config: Config) -> None:
         return
     
     # ── 階段一：並發拉取所有 RSS（純網絡 I/O）──
-    successed_subscriptions: list[tuple[Subscription, FeedResult]] = []
+    successed_subscriptions: list[tuple[Subscription, list[RSSEntry]]] = []
     max_workers = min(len(subscriptions), 10)  # 避免開太多線程
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(_fetch_feed, sub): sub for sub in subscriptions}
@@ -65,10 +65,9 @@ def run(config: Config) -> None:
     # ── 階段二：串行寫入 Notion（受速率限制）──
     total_written = total_skipped = total_failed = 0
 
-    for subscription, feed_articles in successed_subscriptions:
+    for subscription, entries in successed_subscriptions:
         log.info(f"── 处理订阅: {subscription.name or subscription.url}")
 
-        entries = feed_articles.entries
         before_filter = len(entries)
 
         # 时间粗筛：减少进入 URL 去重阶段的条目数
@@ -103,12 +102,21 @@ def run(config: Config) -> None:
         failed_entries = []  # 收集失败的文章信息（标题 + 错误消息）
 
         for idx, entry in enumerate(entries, 1):
-            entry_info_text = f"   [{idx}/{len(entries)}] {entry.title[:60]}"
-            log.debug(entry_info_text)
+            log.debug(f"   [{idx}/{len(entries)}] {entry.title[:60]}")
 
+            skip_msg = ""
             # URL 去重
             if entry.url and entry.url in existing_urls:
-                log.debug("    → 已存在，跳过")
+                skip_msg = "Notion 已存在相同文章"
+
+            # 去除標題或URL 含有關鍵字的 entry
+            for keyword in subscription.filterout_keywords:
+                if keyword in (entry.title + entry.url): 
+                    skip_msg = f"匹配到關鍵字: [{keyword}]"
+                    break
+
+            if skip_msg: 
+                log.debug(f"   跳過: {skip_msg}")
                 skipped += 1
                 continue
 
@@ -154,7 +162,7 @@ def run(config: Config) -> None:
             time.sleep(0.334)  # 控制 Notion API 速率，免費版 3 requests/second
 
         write_str = f" 寫入: {written} " if written>0 else ""
-        skip_str = f" 跳過重複: {skipped} " if skipped>0 else ""
+        skip_str = f" 跳過: {skipped} " if skipped>0 else ""
         failed_str = f" 失敗: {failed} " if failed>0 else ""
         log.info(f"   訂閲完成 —{write_str}{skip_str}{failed_str}")
         total_written += written
