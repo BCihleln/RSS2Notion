@@ -58,10 +58,10 @@ def parse_rss(subscirption: Subscription) -> list[RSSEntry]:
     # 如果有 bozo 错误但没有 entries，无法继续
     if parse_result.bozo:
         if parse_result.entries:
-            log.warning(f"解析異常，但成功提取 {len(parse_result.entries)} 条条目: {parse_result.bozo_exception}")
+            log.warning(f"   {subscirption.name} 解析異常，但成功提取 {len(parse_result.entries)} 条条目: {parse_result.bozo_exception}")
         else:
             log.debug(f"Parsed Fields : {parse_result.keys()}")
-            raise ValueError(f"解析失敗，无条目可提取: {parse_result.bozo_exception}")
+            raise ValueError(f"   {subscirption.name} 解析失敗，无条目可提取: {parse_result.bozo_exception}")
 
     channel_image = ""
     if not subscirption.channel_image:
