@@ -52,29 +52,29 @@ def _parse_entry_published(entry:dict, feed_updated_tuple: struct_time) -> datet
 
 def parse_rss(subscirption: Subscription) -> FeedResult:
     """解析 RSS feed，返回频道标题和条目列表"""
-    log.info(f"   解析 RSS: {subscirption.url}")
+    log.debug(f"   解析 RSS: {subscirption.url}")
     parse_result = feedparser.parse(subscirption.url)
 
     # 如果有 bozo 错误但没有 entries，无法继续
     if parse_result.bozo:
         if parse_result.entries:
-            log.warning(f"RSS 解析異常，但成功提取 {len(parse_result.entries)} 条条目: {parse_result.bozo_exception}")
+            log.warning(f"解析異常，但成功提取 {len(parse_result.entries)} 条条目: {parse_result.bozo_exception}")
         else:
-            log.warning(f"Parsed Fields : {parse_result.keys()}")
-            raise ValueError(f"RSS 解析失敗，无条目可提取: {parse_result.bozo_exception}")
+            log.debug(f"Parsed Fields : {parse_result.keys()}")
+            raise ValueError(f"解析失敗，无条目可提取: {parse_result.bozo_exception}")
 
     channel_image = ""
     if not subscirption.channel_image:
         # 提取频道级封面图：依次尝试 image.url → logo → icon（Atom 格式）
         if hasattr(parse_result.feed, "image"):
-            channel_image = parse_result.feed.image.get("href", "")
+            channel_image = parse_result.feed.image.get("href", "")  # type: ignore
         elif hasattr(parse_result.feed, "logo"):
-            channel_image = feed_icon_url = parse_result.feed.logo
+            channel_image = feed_icon_url = parse_result.feed.logo  # type: ignore
         else: 
-            channel_image = feed_icon_url = parse_result.feed.get("icon", "")
+            channel_image = feed_icon_url = parse_result.feed.get("icon", "")  # type: ignore
     
     # feedparser 的 feed.updated_parsed 用作日期缺失时的备用
-    feed_updated_tuple:struct_time = parse_result.feed.get("updated_parsed")
+    feed_updated_tuple:struct_time = parse_result.feed.get("updated_parsed")  # type: ignore
 
     parsed_entries = []
     for entry in parse_result.entries:

@@ -10,7 +10,7 @@ from .schema import SubscriptionFields, StatusValues
 
 log = logging.getLogger(__name__)
 
-def fetch_active_subscriptions(client: NotionClient, database_id: str) -> list[Subscription]:
+def get_avaliable_subscriptions(client: NotionClient, database_id: str) -> list[Subscription]:
     """从订阅数据库读取所有 Status 為 Active/Empty 的 Page """
     body: dict = {
         "filter": {

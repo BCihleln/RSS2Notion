@@ -10,9 +10,12 @@ from .utils.config import Config
 from .utils.converter import entry_to_notion_blocks
 from .notion.client import NotionClient
 from .notion.cleanup import cleanup_expired_articles
-from .notion.subscription import fetch_active_subscriptions, update_subscription_status
+from .notion.subscription import get_avaliable_subscriptions, update_subscription_status
 from .notion.schema import StatusValues
 from .rss import parse_rss
+
+from .models import FeedResult, Subscription
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +30,7 @@ def run(config: Config) -> None:
 
     # 获取所有活跃订阅
     try:
-        subscriptions = fetch_active_subscriptions(client, config.feeds_database_id)
+        subscriptions = get_avaliable_subscriptions(client, config.feeds_database_id)
     except Exception as e:
         log.error(f"读取订阅数据库失败: {e}")
         return
@@ -35,23 +38,37 @@ def run(config: Config) -> None:
     if not subscriptions:
         log.warning("没有活跃的订阅，退出")
         return
+    
+    # ── 階段一：並發拉取所有 RSS（純網絡 I/O）──
+    successed_subscriptions: list[tuple[Subscription, FeedResult]] = []
+    max_workers = min(len(subscriptions), 10)  # 避免開太多線程
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_fetch_feed, sub): sub for sub in subscriptions}
+        for future in as_completed(futures):
+            fetched_subscirption, fetch_result = future.result()
 
+            status_str = ""
+            error_str = ""
+            if isinstance(fetch_result, Exception):
+                status_str = "✗"
+                error_str = f" ⚠️  {fetch_result}"
+            else: # 成功獲取 FeedResult
+                status_str = "✓"
+                successed_subscriptions.append((fetched_subscirption, fetch_result))
+            
+            log.info(f"   RSS 拉取 {status_str} : {fetched_subscirption.name}{error_str}")
+            if isinstance(fetch_result, Exception):
+                update_subscription_status(
+                    client, fetched_subscirption, status=StatusValues.ERROR, error_msg=str(fetch_result)
+                )
+    
+    # ── 階段二：串行寫入 Notion（受速率限制）──
     total_written = total_skipped = total_failed = 0
 
-    for subscription in subscriptions:
+    for subscription, feed_articles in successed_subscriptions:
         log.info(f"── 处理订阅: {subscription.name or subscription.url}")
 
-        # 解析 RSS
-        try:
-            feed_result = parse_rss(subscription)
-        except Exception as e:
-            log.error(f"  RSS 解析失败: {e}")
-            update_subscription_status(
-                client, subscription, status=StatusValues.ERROR, error_msg=str(e)
-            )
-            continue
-
-        entries = feed_result.entries
+        entries = feed_articles.entries
         before_filter = len(entries)
 
         # 时间粗筛：减少进入 URL 去重阶段的条目数
@@ -134,29 +151,28 @@ def run(config: Config) -> None:
                 })
                 failed += 1
 
-            time.sleep(0.4)  # 控制 Notion API 速率
+            time.sleep(0.334)  # 控制 Notion API 速率，免費版 3 requests/second
 
-        write_msg = f"寫入: {written}" if written>0 else ""
-        skip_msg = f"跳過重複: {skipped}" if skipped>0 else ""
-        failed_msg = f"失敗: {failed}" if failed>0 else ""
-        log.info(f"    訂閲完成 — {write_msg}  {skip_msg}  {failed_msg}")
+        write_str = f" 寫入: {written} " if written>0 else ""
+        skip_str = f" 跳過重複: {skipped} " if skipped>0 else ""
+        failed_str = f" 失敗: {failed} " if failed>0 else ""
+        log.info(f"   訂閲完成 —{write_str}{skip_str}{failed_str}")
         total_written += written
         total_skipped += skipped
         total_failed += failed
 
         # 处理文章写入失败情况
         subscription_status = StatusValues.ACTIVE
-        error_msg = None
+        error_str = None
         
-        if failed > 0:
-            # 汇总失败的文章信息
+        if failed > 0: # 汇总失败的文章信息
             error_summary = f"文章写入失败 ({failed}/{len(entries)})"
             for entry_info in failed_entries[:3]:  # 最多显示前 3 个失败
                 error_summary += f"\n- {entry_info['title']}: {entry_info['error']}"
             if len(failed_entries) > 3:
                 error_summary += f"\n... 等 {len(failed_entries) - 3} 个失败"
             
-            error_msg = error_summary
+            error_str = error_summary
             
             # 全部失败则设置 Status 为 ERROR
             if written == 0 and failed > 0:
@@ -166,7 +182,7 @@ def run(config: Config) -> None:
         update_subscription_status(
             client, subscription,
             status=subscription_status,
-            error_msg=error_msg,
+            error_msg=error_str,
         )
 
     # 自动清理过期文章
@@ -175,3 +191,17 @@ def run(config: Config) -> None:
     log.info(
         f"\n全部完成 — 写入: {total_written}  跳过: {total_skipped}  失败: {total_failed}  刪除: {delete_count}"
     )
+
+# ──────────────────────────────────────────────
+# 内部輔助函數
+# ──────────────────────────────────────────────
+
+def _fetch_feed(subscription: Subscription):
+    """
+    單個訂閱源的 RSS 拉取，返回 (Subscription, FeedResult or Exception)
+    便於并發拉取 RSS
+    """
+    try:
+        return subscription, parse_rss(subscription)
+    except Exception as e:
+        return subscription, e
