@@ -148,6 +148,8 @@ if __name__ == "__main__":
                 subscription.existing_articles.append(entry.url)
                 written += 1
 
+                time.sleep(0.334)  # 控制 Notion API 速率，免費版 3 requests/second
+
             except Exception as e:
                 log.error(f"    ✗ 写入失败: {e}")
                 failed_entries.append({
@@ -155,8 +157,6 @@ if __name__ == "__main__":
                     "error": str(e)[:100],  # 截断错误消息
                 })
                 failed += 1
-
-            time.sleep(0.334)  # 控制 Notion API 速率，免費版 3 requests/second
 
         write_str = f" 寫入: {written} " if written>0 else ""
         skip_str = f" 跳過: {skipped} " if skipped>0 else ""
