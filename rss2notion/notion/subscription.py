@@ -38,7 +38,7 @@ def get_avaliable_subscriptions(
         sub = _parse_subscription(page)
         if isinstance(sub, Subscription):
             page_blocks = client.get_block_children(page["id"])
-            sub.accumulated_errors = [err_block for b in page_blocks if (err_block := b.get("type") == "callout")] # 篩選出 callout 塊作爲已累積的錯誤快
+            sub.accumulated_errors = [b for b in page_blocks if (b.get("type") == "callout")] # 篩選出 callout 塊作爲已累積的錯誤快
             sub.existing_articles = client.query_pages_by_source(entries_database_id, page["id"])
             subscriptions.append(sub)
             log.debug(f"   訂閲源獲取 ✓ : {sub.name} 已有 {len(sub.existing_articles)} 條文章记录")
