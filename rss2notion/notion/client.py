@@ -51,11 +51,28 @@ class NotionClient:
                 time.sleep(self.retry_delay)
         return {}
 
+    def _paginate(self, method: str, path: str, **kwargs) -> list[dict]:
+        """通用批量查询 Database pages 或 page blocks，返回所有结果合并后的列表。"""
+        results = []
+        next_cursor = None
+        while True:
+            if next_cursor:
+                if "json" in kwargs:
+                    kwargs["json"] = {**kwargs["json"], "start_cursor": next_cursor}
+                else:
+                    kwargs["params"] = {**kwargs.get("params", {}), "start_cursor": next_cursor}
+            result = self._request(method, path, **kwargs)
+            results.extend(result.get("results", []))
+            if not result.get("has_more"):
+                break
+            next_cursor = result.get("next_cursor")
+        return results
+
     # ─────────────────────────────────────────────
     # 阅读数据库操作
     # ─────────────────────────────────────────────
 
-    def query_pages_by_source(self, database_id: str, source_page_id: str) -> set[str]:
+    def query_pages_by_source(self, database_id: str, source_page_id: str) -> list[str]:
         """
         批量查询阅读数据库中指定订阅源的所有已存在 URL，返回 URL 集合。
         用于高效去重：避免逐条 API 查询。
@@ -68,22 +85,11 @@ class NotionClient:
             },
             "page_size": 100,
         }
-        has_more = True
-        next_cursor = None
-
-        while has_more:
-            if next_cursor:
-                body["start_cursor"] = next_cursor
-            result = self._request("POST", f"/databases/{database_id}/query", json=body)
-            for page in result.get("results", []):
-                url_prop = page.get("properties", {}).get(EntryFields.URL, {})
-                url = url_prop.get("url") or ""
-                if url:
-                    existing_urls.add(url)
-            has_more = result.get("has_more", False)
-            next_cursor = result.get("next_cursor")
-
-        return existing_urls
+        existing_urls: set[str] = set()
+        for page in self._paginate("POST", f"/databases/{database_id}/query", json=body):
+            if (url := page.get("properties", {}).get(EntryFields.URL, {}).get("url","")):
+                existing_urls.add(url)
+        return [*existing_urls]
 
     def create_page(
         self,
@@ -137,20 +143,7 @@ class NotionClient:
 
     def get_block_children(self, block_id: str) -> list[dict]:
         """获取页面/块的直接子块列表（支持分页）"""
-        blocks: list[dict] = []
-        has_more = True
-        next_cursor = None
-
-        while has_more:
-            params: dict = {"page_size": 100}
-            if next_cursor:
-                params["start_cursor"] = next_cursor
-
-            result = self._request("GET", f"/blocks/{block_id}/children", params=params)
-            blocks.extend(result.get("results", []))
-
-            has_more = result.get("has_more", False)
-            next_cursor = result.get("next_cursor")
+        blocks: list[dict] = self._paginate("GET", f"/blocks/{block_id}/children", params={"page_size": 100})
 
         return blocks
 

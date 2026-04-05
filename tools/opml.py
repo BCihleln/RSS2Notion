@@ -226,20 +226,13 @@ def _fetch_all_feed_urls(client: NotionClient, database_id: str) -> set[str]:
     """批量取得訂閱數據庫中所有已存在的 xmlUrl，回傳 URL 集合（用於去重）"""
     urls: set[str] = set()
     body: dict = {"page_size": 100}
-    has_more = True
-    next_cursor = None
-
-    while has_more:
-        if next_cursor:
-            body["start_cursor"] = next_cursor
-        result = client._request("POST", f"/databases/{database_id}/query", json=body)
-        for page in result.get("results", []):
-            url = page.get("properties", {}).get(SubscriptionFields.URL, {}).get("url") or ""
-            if url:
-                urls.add(url)
-        has_more = result.get("has_more", False)
-        next_cursor = result.get("next_cursor")
-
+    pages = client._paginate("POST", f"/databases/{database_id}/query", json=body)
+    for page in pages:
+        if (url := 
+            page.get("properties", {})
+            .get(SubscriptionFields.URL, {})
+            .get("url", "")):
+            urls.add(url)
     return urls
 
 
@@ -247,32 +240,21 @@ def _fetch_all_subscriptions(client: NotionClient, database_id: str) -> list[dic
     """取得訂閱數據庫的全部訂閱（含 Disabled），回傳簡易 dict 列表"""
     subs = []
     body: dict = {"page_size": 100}
-    has_more = True
-    next_cursor = None
+    pages = client._paginate("POST", f"/databases/{database_id}/query", json=body)
+    for page in pages:
+        props = page.get("properties", {})
+        url = props.get(SubscriptionFields.URL, {}).get("url", "")
+        if not url:  # 略過沒有 URL 的頁面
+            continue
 
-    while has_more:
-        if next_cursor:
-            body["start_cursor"] = next_cursor
-        result = client._request("POST", f"/databases/{database_id}/query", json=body)
+        # 名稱
+        name_items = props.get(SubscriptionFields.NAME, {}).get("title", [])
+        name = "".join(item.get("plain_text", "") for item in name_items).strip()
 
-        for page in result.get("results", []):
-            props = page.get("properties", {})
+        # Tags（multi_select）
+        tags = [t["name"] for t in props.get(TAGS_FIELD, {}).get("multi_select", [])]
 
-            url = props.get(SubscriptionFields.URL, {}).get("url") or ""
-            if not url:
-                continue  # 沒有 URL 的頁面略過
-
-            # 名稱
-            name_items = props.get(SubscriptionFields.NAME, {}).get("title", [])
-            name = "".join(item.get("plain_text", "") for item in name_items).strip()
-
-            # Tags（multi_select）
-            tags = [t["name"] for t in props.get(TAGS_FIELD, {}).get("multi_select", [])]
-
-            subs.append({"name": name or url, "url": url, "tags": tags})
-
-        has_more = result.get("has_more", False)
-        next_cursor = result.get("next_cursor")
+        subs.append({"name": name or url, "url": url, "tags": tags})
 
     return subs
 

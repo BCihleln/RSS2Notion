@@ -11,6 +11,7 @@ class SubscriptionFields:
     STATUS =            "Status"            # Read/Write 
     LAST_UPDATE =       "Updates"           # Read only, Notion database will update automatically
     FILTERLIST =        "Filterout"         # Read only
+    ARTICLES =          "Articles"          # Read only
 
 
 class EntryFields:

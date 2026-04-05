@@ -10,7 +10,11 @@ from .schema import SubscriptionFields, StatusValues
 
 log = logging.getLogger(__name__)
 
-def get_avaliable_subscriptions(client: NotionClient, database_id: str) -> list[Subscription]:
+def get_avaliable_subscriptions(
+        client: NotionClient, 
+        subscirption_database_id: str, 
+        entries_database_id: str,
+        ) -> list[Subscription]:
     """从订阅数据库读取所有 Status 為 Active/Empty 的 Page """
     body: dict = {
         "filter": {
@@ -27,23 +31,19 @@ def get_avaliable_subscriptions(client: NotionClient, database_id: str) -> list[
         },
         "page_size": 100,
     }
+    log.debug("開始獲取訂閲源")
     subscriptions = []
-    has_more = True
-    next_cursor = None
-
-    while has_more:
-        if next_cursor:
-            body["start_cursor"] = next_cursor
-        result = client._request("POST", f"/databases/{database_id}/query", json=body)
-
-        for page in result.get("results", []):
+    pages = client._paginate("POST", f"/databases/{subscirption_database_id}/query", json=body)
+    for page in pages:
+        sub = _parse_subscription(page)
+        if isinstance(sub, Subscription):
             page_blocks = client.get_block_children(page["id"])
-            sub = _parse_subscription(page, page_blocks)
-            if sub:
-                subscriptions.append(sub)
-
-        has_more = result.get("has_more", False)
-        next_cursor = result.get("next_cursor")
+            sub.accumulated_errors = [err_block for b in page_blocks if (err_block := b.get("type") == "callout")] # 篩選出 callout 塊作爲已累積的錯誤快
+            sub.existing_articles = client.query_pages_by_source(entries_database_id, page["id"])
+            subscriptions.append(sub)
+            log.debug(f"   訂閲源獲取 ✓ : {sub.name} 已有 {len(sub.existing_articles)} 條文章记录")
+        else: 
+            log.error(f"   訂閲源獲取 ✗ : {page["url"]}")
 
     log.info(f"读取到 {len(subscriptions)} 个活跃订阅")
     return subscriptions
@@ -86,7 +86,7 @@ def update_subscription_status(
 # 内部辅助函数
 # ─────────────────────────────────────────────
 
-def _parse_subscription(page: dict, page_blocks: list[dict]) -> Subscription | None:
+def _parse_subscription(page: dict) -> Subscription | None:
     """将 Notion 页面对象解析为 Subscription"""
     try:
         props:dict = page.get("properties", {})
@@ -120,12 +120,7 @@ def _parse_subscription(page: dict, page_blocks: list[dict]) -> Subscription | N
 
         # Filterout Keywords (multi_select 類型)
         filterout_keywords_tags:list[dict] = props.get(SubscriptionFields.FILTERLIST, {}).get("multi_select", [])
-        filterout_keywords = []
-        for tag in filterout_keywords_tags: 
-            filterout_keywords.append(tag.get('name'))
-
-        # 篩選出累積的錯誤塊
-        error_blocks = [b for b in page_blocks if b.get("type") == "callout"]
+        filterout_keywords = [tag.get('name') for tag in filterout_keywords_tags]
 
         return Subscription(
             page_id=page["id"],
@@ -136,7 +131,8 @@ def _parse_subscription(page: dict, page_blocks: list[dict]) -> Subscription | N
             full_text_enabled=full_text_enabled,
             status=status,
             last_update=last_update,
-            accumulated_errors=error_blocks,
+            existing_articles=[],
+            accumulated_errors=[],
             filterout_keywords=filterout_keywords
         )
     except Exception as e:

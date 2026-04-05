@@ -39,7 +39,9 @@ if __name__ == "__main__":
 
     # 获取所有活跃订阅
     try:
-        subscriptions = get_avaliable_subscriptions(client, config.feeds_database_id)
+        subscriptions = get_avaliable_subscriptions(client, 
+            config.feeds_database_id, 
+            config.entries_database_id)
     except Exception as e:
         log.error(f"读取订阅数据库失败: {e}")
         exit(0)
@@ -68,7 +70,7 @@ if __name__ == "__main__":
             log.info(f"   RSS 拉取 {status_str} : {fetched_subscirption.name}{error_str}")
             if isinstance(fetch_result, Exception):
                 fetch_error(client, fetched_subscirption, str(fetch_result))
-    
+
     # ── 階段二：串行寫入 Notion（受速率限制）──
     total_written = total_skipped = total_failed = 0
 
@@ -88,19 +90,9 @@ if __name__ == "__main__":
             log.info(f"   导入全部历史数据（{len(entries)} 条）")
 
         if not entries:
-            log.info("   没有新文章，跳过")
+            log.debug("   没有新文章，跳过")
             fetch_success(client, subscription)
             continue
-
-        # 批量查询已存在的 URL（去重）
-        existing_urls: set[str] = set()
-        try:
-            existing_urls = client.query_pages_by_source(
-                config.entries_database_id, subscription.page_id
-            )
-            log.debug(f"   已存在 {len(existing_urls)} 条记录（用于去重）")
-        except Exception as e:
-            log.warning(f"   批量去重查询失败，将逐条跳过: {e}")
 
         written = skipped = failed = 0
         failed_entries: list[dict] = []  # 收集失败的文章信息（标题 + 错误消息）
@@ -110,7 +102,7 @@ if __name__ == "__main__":
 
             skip_msg = ""
             # URL 去重
-            if entry.url and entry.url in existing_urls:
+            if entry.url and entry.url in subscription.existing_articles:
                 skip_msg = "Notion 已存在相同文章"
 
             # 去除標題或URL 含有關鍵字的 entry
@@ -153,7 +145,7 @@ if __name__ == "__main__":
 
                 log.info(f"    ✓ 写入: {entry.title}")
                 log.info(f"    ------- {page['url']}")
-                existing_urls.add(entry.url)  # 防止同一次运行中重复写入
+                subscription.existing_articles.append(entry.url)
                 written += 1
 
             except Exception as e:
