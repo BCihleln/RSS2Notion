@@ -31,7 +31,6 @@ def split_html_to_blocks(html: str) -> list[tuple]:
         combined = "".join(str(n) for n in pending_html)
         text = md(combined, heading_style="ATX",
                   strip=["script", "style"],
-                  newline_style="backslash",
                   bullets="-").strip()
         if text:
             result.append(("text", text))
