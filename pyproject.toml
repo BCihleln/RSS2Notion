@@ -5,8 +5,6 @@ description = "将 RSS 订阅内容自动同步到 Notion 数据库"
 requires-python = ">=3.14"
 dependencies = [
     "feedparser>=6.0",
-    "markdownify>=0.14",
-    "mistletoe>=1.4",
     "requests>=2.32",
     "beautifulsoup4>=4.12",
 ]

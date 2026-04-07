@@ -5,7 +5,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from .utils.converter import split_html_to_blocks
+# from .utils.converter import split_html_to_blocks
+from .utils.html2notion_block import html_to_notion_blocks
 
 
 @dataclass
@@ -17,16 +18,17 @@ class RSSEntry:
     content_html: str
     cover_image: str = "" # 最终封面：优先取文章第一张图，没有则用频道图
     channel_image: str = "" # 频道级封面图（RSS <image> 标签），条目无图时兜底使用
-    blocks: list[tuple] = field(default_factory=list, init=False) # 解析后的「块列表」，每个块是 ("text", markdown字符串) 或 ("image", url)
+    blocks: list[dict] = field(default_factory=list, init=False) # 暫存解析后的「块列表」
 
     def __post_init__(self):
         if self.content_html:
-            self.blocks = split_html_to_blocks(self.content_html)
-        # 优先用文章内第一张图，无图则降级到频道封面
-        for kind, val in self.blocks:
-            if kind == "image":
-                self.cover_image = val
-                break
+            # self.blocks = split_html_to_blocks(self.content_html)
+            self.blocks = html_to_notion_blocks(self.content_html)
+        # 從已解析的 blocks 中找第一張圖作封面
+            for b in self.blocks:
+                if b.get("type") == "image":
+                    self.cover_image = b["image"]["external"]["url"]
+                    break
         if not self.cover_image:
             self.cover_image = self.channel_image
 

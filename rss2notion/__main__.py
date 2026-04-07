@@ -8,7 +8,8 @@ import time
 from datetime import datetime, timedelta
 
 from .utils.config import Config
-from .utils.converter import entry_to_notion_blocks
+# from .utils.converter import entry_to_notion_blocks
+from .utils.html2notion_block import html_to_notion_blocks
 
 from .models import Subscription, RSSEntry
 
@@ -119,12 +120,17 @@ if __name__ == "__main__":
 
             try:
                 # 默認獲取 Feed 内提供的 content 或 summery 内容
-                all_blocks = entry_to_notion_blocks(entry)
-                first_batch = all_blocks[:config.notion_block_limit]
-                rest_blocks = all_blocks[config.notion_block_limit:]
+                # all_blocks = entry_to_notion_blocks(entry)
+                all_blocks = []
+                first_batch = []
+                rest_blocks = []
+                if entry.content_html:
+                    all_blocks = html_to_notion_blocks(entry.content_html)
+                    first_batch = all_blocks[:config.notion_block_limit]
+                    rest_blocks = all_blocks[config.notion_block_limit:]
 
-                img_count = sum(1 for b in all_blocks if b.get("type") == "image")
-                log.debug(f"    blocks: {len(all_blocks)} 个（含 {img_count} 张图片）")
+                    img_count = sum(1 for b in all_blocks if b.get("type") == "image")
+                    log.debug(f"    blocks: {len(all_blocks)} 个（含 {img_count} 张图片）")
 
                 page = client.create_page(
                     database_id=config.entries_database_id,
