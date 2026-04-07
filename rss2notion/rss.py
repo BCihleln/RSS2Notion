@@ -43,12 +43,13 @@ def _parse_entry_thumbnail(entry:dict)-> str:
 
 def _parse_entry_published(entry:dict, feed_updated_tuple: struct_time) -> datetime:
     """
-    提取发布日期：优先 published_parsed，再试 updated_parsed，
-    都没有则 fallback 到 feed 更新时间，最后为空字符串（不用 datetime.now()）
+    提取发布日期：优先 published_parsed，再试 updated_parsed，再试 feed_updated_time
+    都没有则 fallback 到 datetime.now()
     """
     tuple:struct_time = entry.get("published_parsed") or entry.get("updated_parsed") or feed_updated_tuple
-
-    return datetime(tuple.tm_year, tuple.tm_mon, tuple.tm_mday, tuple.tm_hour, tuple.tm_min, tuple.tm_sec, tzinfo=timezone.utc)
+    if tuple:
+        return datetime(tuple.tm_year, tuple.tm_mon, tuple.tm_mday, tuple.tm_hour, tuple.tm_min, tuple.tm_sec, tzinfo=timezone.utc)
+    else: return datetime.now(tz=timezone.utc)
 
 def parse_rss(subscirption: Subscription) -> list[RSSEntry]:
     """解析 RSS feed，返回条目列表"""
