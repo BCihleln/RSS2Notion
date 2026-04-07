@@ -106,9 +106,7 @@ def _parse_subscription(page: dict) -> Subscription | None:
         # Name（title 类型）
         name_items = props.get(SubscriptionFields.NAME, {}).get("title", [])
         name = "".join(item.get("plain_text", "") for item in name_items).strip()
-
-        # FullTextEnabled（checkbox 类型）
-        full_text_enabled = props.get(SubscriptionFields.FULL_TEXT_ENABLED, {}).get("checkbox", False)
+        # log.info(f" name : {name}")
 
         # Status（select 类型）
         status_obj = props.get(SubscriptionFields.STATUS, {}).get("select", {})
@@ -128,7 +126,6 @@ def _parse_subscription(page: dict) -> Subscription | None:
             url=url,
             icon=icon,
             channel_image=image, 
-            full_text_enabled=full_text_enabled,
             status=status,
             last_update=last_update,
             existing_articles=[],

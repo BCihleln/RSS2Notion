@@ -136,10 +136,6 @@ if __name__ == "__main__":
 
                 if rest_blocks:
                     client.append_blocks(page_id, rest_blocks)
-
-                if subscription.full_text_enabled:
-                    # TODO: 進階獲取網頁全文模式
-                    pass
                 
                 client.lock_page(page_id) # Auto lock to prevent accidental modification in database UI
 

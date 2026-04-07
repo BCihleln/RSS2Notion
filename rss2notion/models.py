@@ -39,7 +39,6 @@ class Subscription:
     icon: dict | None
     channel_image: str | None
     filterout_keywords: list
-    full_text_enabled: bool
     status: str                     # Active / Error /Disabled
     last_update: datetime           # ISO 日期
     existing_articles: list[str]    # 已存入 Notion 的文章鏈接清單，便於去重
