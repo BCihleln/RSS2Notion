@@ -12,6 +12,7 @@ class SubscriptionFields:
     LAST_UPDATE =       "Updates"           # Read only, Notion database will update automatically
     FILTERLIST =        "Filterout"         # Read only
     ARTICLES =          "Articles"          # Read only
+    CLEANUP_DAYS =      "Cleanup Days"      # Read only
 
 
 class EntryFields:

@@ -80,11 +80,16 @@ if __name__ == "__main__":
         before_filter = len(entries)
 
         # 时间粗筛：减少进入 URL 去重阶段的条目数
-        if config.cleanup_days >= 0:
+        import_days = (
+            subscription.cleanup_days
+            if subscription.cleanup_days is not None
+            else config.cleanup_days
+        )
+        if import_days > 0:
             # 默认只导入 cleanup_days 天内的文章，避免历史数据全量涌入
-            cutoff = (datetime.now(config.timezone) - timedelta(days=config.cleanup_days)).replace(hour=0,minute=0,second=0, microsecond=0)
+            cutoff = (datetime.now(config.timezone) - timedelta(days=import_days)).replace(hour=0,minute=0,second=0, microsecond=0)
             entries = [e for e in entries if e.published >= cutoff]
-            log.info(f"   导入最近 {config.cleanup_days} 天的文章 (自 {cutoff})：{before_filter} → {len(entries)} 条")
+            log.info(f"   导入最近 {import_days} 天的文章 (自 {cutoff})：{before_filter} → {len(entries)} 条")
         else:
             # cleanup_days=-1：首次运行写入全部历史数据
             log.info(f"   导入全部历史数据（{len(entries)} 条）")
@@ -183,9 +188,32 @@ if __name__ == "__main__":
         else: # 完全成功：清空历史错误块并置 Active
             fetch_success(client, subscription)
 
-    # 自动清理过期文章
-    delete_count = cleanup_expired_articles(client, config.entries_database_id, config.cleanup_days+1, config.timezone)
+    # ── 階段三：逐訂閲源清理過期文章 ──
+    # 每個訂閲源使用自身的 cleanup_days 覆寫值，未設定則沿用全局值
+    total_deleted = 0
+    for subscription in subscriptions:
+        effective_days = (
+            subscription.cleanup_days
+            if subscription.cleanup_days is not None
+            else config.cleanup_days
+        )
+        source_label = f"{subscription.name or subscription.url}"
+        if subscription.cleanup_days is not None:
+            log.info(f"── 清理訂閲 [{source_label}]：覆寫值 {effective_days} 天")
+        else:
+            log.debug(f"── 清理訂閲 [{source_label}]：全局值 {effective_days} 天")
+
+        deleted = cleanup_expired_articles(
+            client,
+            database_id=config.entries_database_id,
+            cleanup_days=effective_days + 1,
+            tz=config.timezone,
+            source_page_id=subscription.page_id,
+        )
+        total_deleted += deleted
+        if deleted:
+            log.info(f"   ✓ 已刪除 {deleted} 篇過期文章")
 
     log.info(
-        f"\n全部完成 — 写入: {total_written}  跳过: {total_skipped}  失败: {total_failed}  刪除: {delete_count}"
+        f"\n全部完成 — 写入: {total_written}  跳过: {total_skipped}  失败: {total_failed}  刪除: {total_deleted}"
     )

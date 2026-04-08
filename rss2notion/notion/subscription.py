@@ -41,7 +41,8 @@ def get_avaliable_subscriptions(
             sub.accumulated_errors = [b for b in page_blocks if (b.get("type") == "callout")] # 篩選出 callout 塊作爲已累積的錯誤快
             sub.existing_articles = client.query_pages_by_source(entries_database_id, page["id"])
             subscriptions.append(sub)
-            log.debug(f"   訂閲源獲取 ✓ : {sub.name} 已有 {len(sub.existing_articles)} 條文章记录")
+            cleanup_str = f"，Cleanup Days 覆寫: {sub.cleanup_days}" if sub.cleanup_days is not None else ""
+            log.debug(f"   訂閲源獲取 ✓ : {sub.name} 已有 {len(sub.existing_articles)} 條文章记录{cleanup_str}")
         else: 
             log.error(f"   訂閲源獲取 ✗ : {page["url"]}")
 
@@ -120,6 +121,10 @@ def _parse_subscription(page: dict) -> Subscription | None:
         filterout_keywords_tags:list[dict] = props.get(SubscriptionFields.FILTERLIST, {}).get("multi_select", [])
         filterout_keywords = [tag.get('name') for tag in filterout_keywords_tags]
 
+        # Cleanup Days（number 類型）；空值保留 None，表示沿用全局值
+        cleanup_days_raw = props.get(SubscriptionFields.CLEANUP_DAYS, {}).get("number", None)
+        cleanup_days: int | None = int(cleanup_days_raw) if cleanup_days_raw is not None else None
+
         return Subscription(
             page_id=page["id"],
             name=name,
@@ -130,7 +135,8 @@ def _parse_subscription(page: dict) -> Subscription | None:
             last_update=last_update,
             existing_articles=[],
             accumulated_errors=[],
-            filterout_keywords=filterout_keywords
+            filterout_keywords=filterout_keywords,
+            cleanup_days=cleanup_days,
         )
     except Exception as e:
         log.error(f"解析订阅页面失败 {page.get('id', '?')}: {e}")
