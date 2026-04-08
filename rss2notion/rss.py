@@ -26,20 +26,20 @@ def _parse_entry_thumbnail(entry:dict)-> str:
     """
     提取条目级缩略图：优先 media_content（即 feedparser 规范化的媒体元素列表），再试 enclosures
     """
-    entry_thumb = ""
-    if hasattr(entry, "media_content"):
-        for media in entry.get("media_content", []):
+    entry_thumb_dict = {}
+    if media_thumbnails := entry.get("media_thumbnail", [{}]):
+        entry_thumb_dict = media_thumbnails[0]
+    elif media_contents := entry.get("media_content", []):
+        for media in media_contents:
             if media.get("medium") == "image" or media.get("type", "").startswith("image/"):
-                entry_thumb = media.get("url", "")
+                entry_thumb_dict = media
                 break
-    elif hasattr(entry, "media_thumbnail"): # 备用：media_thumbnail（更常见的 RSS 扩展）
-        entry_thumb = entry.get("media_thumbnail", [{}])[0].get("url", "")
     else: # 最后备用：enclosures
         for enc in entry.get("enclosures", []):
             if enc.get("type", "").startswith("image/"):
-                entry_thumb = enc.get("url", "")
+                entry_thumb_dict = enc
                 break
-    return entry_thumb
+    return entry_thumb_dict.get("url", "")
 
 def _parse_entry_published(entry:dict, feed_updated_tuple: struct_time) -> datetime:
     """
