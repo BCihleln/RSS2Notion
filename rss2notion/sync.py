@@ -9,7 +9,7 @@ from .utils.config import Config
 
 from .notion.client import NotionClient
 from .notion.subscription import update_subscription_status
-from .notion.schema import StatusValues
+from .schema import StatusValues
 from .rss import parse_rss
 
 from .models import Subscription, RSSEntry
@@ -31,7 +31,7 @@ def fetch_subscription(subscription: Subscription):
     except Exception as e:
         return subscription, e
 
-def fetch_error(
+def fetch_failed(
     client: NotionClient,
     subscription: Subscription,
     error_msg: str,

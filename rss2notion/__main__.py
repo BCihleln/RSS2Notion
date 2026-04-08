@@ -8,12 +8,11 @@ import time
 from datetime import datetime, timedelta
 
 from .utils.config import Config
-# from .utils.converter import entry_to_notion_blocks
 from .utils.html2notion_block import html_to_notion_blocks
 
 from .models import Subscription, RSSEntry
 
-from .sync import fetch_subscription, fetch_error, fetch_success
+from .sync import fetch_subscription, fetch_failed, fetch_success
 
 from .notion.client import NotionClient
 from .notion.cleanup import cleanup_expired_articles
@@ -70,7 +69,7 @@ if __name__ == "__main__":
             
             log.info(f"   RSS 拉取 {status_str} : {fetched_subscirption.name}{error_str}")
             if isinstance(fetch_result, Exception):
-                fetch_error(client, fetched_subscirption, str(fetch_result))
+                fetch_failed(client, fetched_subscirption, str(fetch_result))
 
     # ── 階段二：串行寫入 Notion（受速率限制）──
     total_written = total_skipped = total_failed = 0
@@ -177,7 +176,7 @@ if __name__ == "__main__":
                 error_summary += f"\n... 等 {len(failed_entries) - 3} 个失败"
 
             if written == 0: # 全部失败：走与 RSS 拉取失败相同的错误计数逻辑
-                fetch_error(client, subscription, error_summary)
+                fetch_failed(client, subscription, error_summary)
             else: # 部分失败：视为成功（清空错误块），但仍追加本次错误记录
                 fetch_success(client, subscription)
                 client.append_error_block(subscription.page_id, error_summary)

@@ -16,7 +16,7 @@ from xml.dom import minidom
 from rss2notion.utils.config import Config
 from rss2notion.utils.get_favicon import get_website_favicon
 from rss2notion.notion.client import NotionClient
-from rss2notion.notion.schema import SubscriptionFields, StatusValues
+from rss2notion.schema import SubscriptionFields, StatusValues
 
 # 訂閱數據庫 Tags 屬性名（multi_select）
 TAGS_FIELD = "Group Tag"

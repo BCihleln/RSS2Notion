@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from .client import NotionClient
-from .schema import EntryFields, StateValues
+from ..schema import EntryFields, StateValues
 
 log = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import requests
 
-from .schema import EntryFields, StateValues
+from ..schema import EntryFields, StateValues
 
 log = logging.getLogger(__name__)
 

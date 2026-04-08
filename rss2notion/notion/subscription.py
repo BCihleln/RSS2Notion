@@ -6,7 +6,7 @@ import logging
 
 from ..models import Subscription
 from .client import NotionClient
-from .schema import SubscriptionFields, StatusValues
+from ..schema import SubscriptionFields, StatusValues
 
 log = logging.getLogger(__name__)
 

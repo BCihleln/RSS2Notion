@@ -5,7 +5,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-# from .utils.converter import split_html_to_blocks
 from .utils.html2notion_block import html_to_notion_blocks
 
 
