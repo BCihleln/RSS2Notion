@@ -125,6 +125,9 @@ def _parse_subscription(page: dict) -> Subscription | None:
         cleanup_days_raw = props.get(SubscriptionFields.CLEANUP_DAYS, {}).get("number", None)
         cleanup_days: int | None = int(cleanup_days_raw) if cleanup_days_raw is not None else None
 
+        # Fetch Amount（number 類型）；空值保留 None，表示沿用全局值
+        fetch_amount: int | None = props.get(SubscriptionFields.FETCH_AMOUNT, {}).get("number", None)
+
         return Subscription(
             page_id=page["id"],
             name=name,
@@ -137,6 +140,7 @@ def _parse_subscription(page: dict) -> Subscription | None:
             accumulated_errors=[],
             filterout_keywords=filterout_keywords,
             fetch_days=cleanup_days,
+            fetch_amount=fetch_amount,
         )
     except Exception as e:
         log.error(f"解析订阅页面失败 {page.get('id', '?')}: {e}")

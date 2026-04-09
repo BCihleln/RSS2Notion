@@ -13,6 +13,7 @@ class SubscriptionFields:
     FILTERLIST =        "Filterout"         # Read only
     ARTICLES =          "Articles"          # Read only
     CLEANUP_DAYS =      "Cleanup Days"      # Read only
+    FETCH_AMOUNT =      "Fetch Amount"      # Read only
 
 
 class EntryFields:

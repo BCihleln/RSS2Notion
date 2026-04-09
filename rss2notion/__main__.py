@@ -95,14 +95,17 @@ if __name__ == "__main__":
             import_msg = f"{is_overwrite_str}最近 {import_days} 天 (自 {cutoff})"
         else: # 無時限時限定導入的最大數量 (避免全量導入)
             entries = entries[:config.max_import_count]
-            import_msg = f"最近 {len(entries)} 筆"
+
+        if subscription.fetch_amount: # 根據訂閱源配置再篩最新的指定篇數
+            entries = entries[:subscription.fetch_amount]
+            import_msg += f" 最近 {subscription.fetch_amount} 篇"
 
         if not entries:
             log.info("   没有新文章，跳过")
             fetch_success(client, subscription)
             continue
         else:
-            log.info(f"   導入文章：{import_msg} ({before_filter} → {len(entries)} 筆)")
+            log.info(f"   導入文章：{import_msg} ({before_filter} → {len(entries)})")
 
         written = skipped = failed = 0
         failed_entries: list[dict] = []  # 收集失败的文章信息（标题 + 错误消息）
