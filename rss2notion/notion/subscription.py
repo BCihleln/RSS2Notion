@@ -41,7 +41,7 @@ def get_avaliable_subscriptions(
             sub.accumulated_errors = [b for b in page_blocks if (b.get("type") == "callout")] # 篩選出 callout 塊作爲已累積的錯誤快
             sub.existing_articles = client.query_pages_by_source(entries_database_id, page["id"])
             subscriptions.append(sub)
-            cleanup_str = f"，Cleanup Days 覆寫: {sub.cleanup_days}" if sub.cleanup_days is not None else ""
+            cleanup_str = f"，Cleanup Days 覆寫: {sub.fetch_days}" if sub.fetch_days is not None else ""
             log.debug(f"   訂閲源獲取 ✓ : {sub.name} 已有 {len(sub.existing_articles)} 條文章记录{cleanup_str}")
         else: 
             log.error(f"   訂閲源獲取 ✗ : {page["url"]}")
@@ -136,7 +136,7 @@ def _parse_subscription(page: dict) -> Subscription | None:
             existing_articles=[],
             accumulated_errors=[],
             filterout_keywords=filterout_keywords,
-            cleanup_days=cleanup_days,
+            fetch_days=cleanup_days,
         )
     except Exception as e:
         log.error(f"解析订阅页面失败 {page.get('id', '?')}: {e}")

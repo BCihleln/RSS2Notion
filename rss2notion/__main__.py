@@ -72,7 +72,7 @@ if __name__ == "__main__":
                 fetch_failed(client, fetched_subscirption, str(fetch_result))
 
     # ── 階段二：串行寫入 Notion（受速率限制）──
-    total_written = total_skipped = total_failed = 0
+    total_written = total_skipped = total_failed = total_deleted = 0
 
     for subscription, entries in successed_subscriptions:
         log.info(f"── 处理订阅: {subscription.name or subscription.url}")
@@ -80,19 +80,29 @@ if __name__ == "__main__":
         before_filter = len(entries)
 
         # 时间粗筛：减少进入 URL 去重阶段的条目数
-        import_days = config.cleanup_days
+        import_days = 1
+        is_overwrite_str = ""
+        if subscription.fetch_days is not None :
+            import_days = subscription.fetch_days
+            is_overwrite_str = " (覆寫默認) "
+        else:
+            import_days = config.cleanup_days
+
+        import_msg = ""
         if import_days > 0:
             cutoff = (datetime.now(config.timezone) - timedelta(days=import_days)).replace(hour=0,minute=0,second=0, microsecond=0)
             entries = [e for e in entries if e.published >= cutoff]
-            log.info(f"   導入最近 {import_days} 天的文章 (自 {cutoff})：{before_filter} → {len(entries)} 筆")
-        else:
+            import_msg = f"{is_overwrite_str}最近 {import_days} 天 (自 {cutoff})"
+        else: # 無時限時限定導入的最大數量 (避免全量導入)
             entries = entries[:config.max_import_count]
-            log.info(f"   導入最近 {len(entries)} 筆文章）")
+            import_msg = f"最近 {len(entries)} 筆"
 
         if not entries:
-            log.debug("   没有新文章，跳过")
+            log.info("   没有新文章，跳过")
             fetch_success(client, subscription)
             continue
+        else:
+            log.info(f"   導入文章：{import_msg} ({before_filter} → {len(entries)} 筆)")
 
         written = skipped = failed = 0
         failed_entries: list[dict] = []  # 收集失败的文章信息（标题 + 错误消息）
@@ -159,10 +169,6 @@ if __name__ == "__main__":
                 })
                 failed += 1
 
-        write_str = f" 寫入: {written} " if written>0 else ""
-        skip_str = f" 跳過: {skipped} " if skipped>0 else ""
-        failed_str = f" 失敗: {failed} " if failed>0 else ""
-        log.info(f"   訂閲完成 —{write_str}{skip_str}{failed_str}")
         total_written += written
         total_skipped += skipped
         total_failed += failed
@@ -183,31 +189,30 @@ if __name__ == "__main__":
         else: # 完全成功：清空历史错误块并置 Active
             fetch_success(client, subscription)
 
-    # ── 階段三：逐訂閲源清理過期文章 ──
-    # 每個訂閲源使用自身的 cleanup_days 覆寫值，未設定則沿用全局值
-    total_deleted = 0
-    for subscription in subscriptions:
-        effective_days = (
-            subscription.cleanup_days
-            if subscription.cleanup_days is not None
-            else config.cleanup_days
-        )
-        source_label = f"{subscription.name or subscription.url}"
-        if subscription.cleanup_days is not None:
-            log.info(f"── 清理訂閲 [{source_label}]：覆寫值 {effective_days} 天")
-        else:
-            log.debug(f"── 清理訂閲 [{source_label}]：全局值 {effective_days} 天")
+        # ── 階段三：處理往期文章 ──
+        # 每個訂閲源可獨立覆寫 cleanup_days 值，未設定則沿用全局默認值
+        # cleanup_days <= 0：手動管理往期文章，不自動刪除
+        # cleanup_days >  0：自動刪除指定期限以前的往期文章
+        deleted = 0
+        if import_days > 0:
+            log.info(f"   清理 {import_days} 天{is_overwrite_str}前的未星號文章")
 
-        deleted = cleanup_expired_articles(
-            client,
-            database_id=config.entries_database_id,
-            cleanup_days=effective_days + 1,
-            tz=config.timezone,
-            source_page_id=subscription.page_id,
-        )
+            deleted = cleanup_expired_articles(
+                client,
+                database_id=config.entries_database_id,
+                cleanup_days=import_days + 1,
+                tz=config.timezone,
+                source_page_id=subscription.page_id,
+            )
+            if deleted:
+                log.info(f"   ✓ 已刪除 {deleted} 篇過期文章")
         total_deleted += deleted
-        if deleted:
-            log.info(f"   ✓ 已刪除 {deleted} 篇過期文章")
+
+        write_str = f" 寫入: {written} " if written > 0 else ""
+        skip_str = f" 跳過: {skipped} " if skipped > 0 else ""
+        failed_str = f" 失敗: {failed} " if failed > 0 else ""
+        deleted_str = f" 刪除: {deleted} " if deleted > 0 else ""
+        log.info(f"   處理完成 —{write_str}{skip_str}{failed_str}{deleted_str}")
 
     log.info(
         f"\n全部完成 — 写入: {total_written}  跳过: {total_skipped}  失败: {total_failed}  刪除: {total_deleted}"
