@@ -80,19 +80,14 @@ if __name__ == "__main__":
         before_filter = len(entries)
 
         # 时间粗筛：减少进入 URL 去重阶段的条目数
-        import_days = (
-            subscription.cleanup_days
-            if subscription.cleanup_days is not None
-            else config.cleanup_days
-        )
+        import_days = config.cleanup_days
         if import_days > 0:
-            # 默认只导入 cleanup_days 天内的文章，避免历史数据全量涌入
             cutoff = (datetime.now(config.timezone) - timedelta(days=import_days)).replace(hour=0,minute=0,second=0, microsecond=0)
             entries = [e for e in entries if e.published >= cutoff]
-            log.info(f"   导入最近 {import_days} 天的文章 (自 {cutoff})：{before_filter} → {len(entries)} 条")
+            log.info(f"   導入最近 {import_days} 天的文章 (自 {cutoff})：{before_filter} → {len(entries)} 筆")
         else:
-            # cleanup_days=-1：首次运行写入全部历史数据
-            log.info(f"   导入全部历史数据（{len(entries)} 条）")
+            entries = entries[:config.max_import_count]
+            log.info(f"   導入最近 {len(entries)} 筆文章）")
 
         if not entries:
             log.debug("   没有新文章，跳过")
