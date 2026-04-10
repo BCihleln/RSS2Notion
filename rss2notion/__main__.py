@@ -127,7 +127,7 @@ if __name__ == "__main__":
                     break
 
             if skip_msg: 
-                log.info(f"   跳過: {skip_msg}")
+                log.debug(f"   跳過: {skip_msg}")
                 skipped += 1
                 continue
 
@@ -204,7 +204,7 @@ if __name__ == "__main__":
             deleted = cleanup_expired_articles(
                 client,
                 database_id=config.entries_database_id,
-                cleanup_days=import_days + 1,
+                cleanup_days=import_days,
                 tz=config.timezone,
                 source_page_id=subscription.page_id,
             )
