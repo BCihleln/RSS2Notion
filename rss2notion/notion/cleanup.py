@@ -67,11 +67,11 @@ def cleanup_expired_articles(
     pages_should_deleted = client._paginate("POST", f"/databases/{database_id}/query", json=body)
     for page in pages_should_deleted:
         try:
+            log.info(f"   刪除：{page['url']}")
             client.delete_page(page["id"])
             deleted_count += 1
-            log.info(f"已刪除：{page['url']}")
             time.sleep(0.3) # 控制速率
         except Exception as e:
-            log.error(f"删除页面 {page['id']} 失败: {e}")
+            log.error(f"   删除页面 {page['id']} 失败: {e}")
 
     return deleted_count

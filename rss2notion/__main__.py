@@ -82,7 +82,7 @@ if __name__ == "__main__":
         # 时间粗筛：减少进入 URL 去重阶段的条目数
         import_days = 1
         is_overwrite_str = ""
-        if subscription.fetch_days is not None :
+        if (subscription.fetch_days is not None) and len(subscription.existing_articles)>0:
             import_days = subscription.fetch_days
             is_overwrite_str = " (覆寫默認) "
         else:
@@ -94,6 +94,7 @@ if __name__ == "__main__":
             entries = [e for e in entries if e.published >= cutoff]
             import_msg = f"{is_overwrite_str}最近 {import_days} 天 (自 {cutoff})"
         else: # 無時限時限定導入的最大數量 (避免全量導入)
+            import_msg = f"歷史 {config.max_import_count} 篇"
             entries = entries[:config.max_import_count]
 
         if subscription.fetch_amount: # 根據訂閱源配置再篩最新的指定篇數
@@ -198,7 +199,7 @@ if __name__ == "__main__":
         # cleanup_days >  0：自動刪除指定期限以前的往期文章
         deleted = 0
         if import_days > 0:
-            log.info(f"   清理 {import_days} 天{is_overwrite_str}前的未星號文章")
+            log.debug(f"   清理 {import_days} 天{is_overwrite_str}前的未星號文章")
 
             deleted = cleanup_expired_articles(
                 client,

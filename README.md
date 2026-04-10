@@ -20,7 +20,7 @@ English | [简体中文](./README_ZH.md)
 ## ✨ Features
 
 - **Notion-based subscription management** — Add, edit, and disable RSS sources directly in Notion, no config files needed
-- **Full-text or metadata-only mode** — Each subscription can independently enable full-text saving; when disabled, only title, URL, author, and publish date are saved
+- **Full-text mode** — Each subscription is automatical enable full-text saving; when disabled, only title, URL, author, and publish date are saved
 - **Smart deduplication** — Timestamp-based filtering + batch URL lookup to efficiently avoid duplicate entries
 - **Image-text layout** — Article images are fully preserved and interleaved with text in Notion pages
 - **Tag aggregation** — RSS tags and subscription-level custom tags are merged automatically
@@ -135,12 +135,14 @@ After that, the sync will run automatically every hour.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `Name` | title | Feed name (auto-filled from RSS channel title if left empty) |
+| `Feed Name` | title |  |
 | `URL` | url | RSS feed URL |
-| `FullTextEnabled` | checkbox | When enabled, saves full article content; otherwise saves metadata only |
-| `Status` | select | Sync status: `Active` (success) / `Error` (failed) / `Disabled` (skipped) |
-| `LastUpdate` | date | Last sync time (maintained automatically) |
-| `Tags` | multi_select | Subscription-level tags, appended to all articles from this source |
+| `Status` | select | Sync status: `Active` (success) / `Error` (failed) / `Disabled` (skipped) | Empty (Warning or Test)
+| `Group Tag` | select | Subscription-level tags, will be roll-up into reading database |
+| `Updates` | date | Last sync time (maintained automatically) |
+| `Filterout` | multi_select | Keywords that matched in the title or url of the entries will be filterout | 
+| `Fetch Amount` | number |  | 
+| `Cleanup Days` | number |  | 
 
 ### Reading Database
 
@@ -149,9 +151,8 @@ After that, the sync will run automatically every hour.
 | `Name` | title | Article title |
 | `URL` | url | Article link |
 | `Published` | date | Publish time |
-| `Author` | rich_text | Author |
-| `Tags` | multi_select | Tags (merged from RSS tags + subscription tags) |
-| `State` | select | Reading state: `Unread` / `Reading` / `Starred` |
+| `Group Tag` | multi_select | Tags roll-up from Subscription database |
+| `State` | select | Reading state: `Unread` / Empty (Read) / `Starred` |
 | `Source` | relation | Linked to the Subscription Database |
 
 ---
@@ -179,12 +180,9 @@ uv run python -m rss2notion
 
 ## 🙏 Acknowledgements
 
-- [lcoolcool/notion-rss-reader](https://github.com/lcoolcool/notion-rss-reader) — Inspiration
-- [lcoolcool/RSS-to-Notion](https://github.com/lcoolcool/RSS-to-Notion) — Inspiration
+- [lcoolcool/RSS2Notion](https://github.com/lcoolcool/RSS2Notion) — Inspiration
+- [Yutu0k/RSS-to-Notion](https://github.com/Yutu0k/RSS-to-Notion) — Inspiration
 - [feedparser](https://github.com/kurtmckee/feedparser) — RSS parsing
-- [mistletoe](https://github.com/miyuchina/mistletoe) — Markdown AST parsing
-- [markdownify](https://github.com/matthewwithanm/python-markdownify) — HTML to Markdown
-
 ---
 
 ## 📄 License
