@@ -42,7 +42,7 @@ class Subscription:
     filterout_keywords: list
     status: str                     # Active / Error /Disabled
     last_update: datetime           # ISO 日期
-    existing_articles: list[str]    # 已存入 Notion 的文章鏈接清單，便於去重
+    existing_articles: list[str]    # 已存入 Notion 的文章清單 (混存 URL 與標題) ，便於去重
     accumulated_errors: list[dict]
     fetch_amount: int | None = None
     fetch_days: int | None = None

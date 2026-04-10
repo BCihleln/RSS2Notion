@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
             skip_msg = ""
             # URL 去重
-            if entry.url and entry.url in subscription.existing_articles:
+            if (entry.url and entry.url in subscription.existing_articles) or (entry.title in subscription.existing_articles): # 將標題與 URL 一同比對
                 skip_msg = "Notion 已存在相同文章"
 
             # 去除標題或URL 含有關鍵字的 entry
@@ -127,7 +127,7 @@ if __name__ == "__main__":
                     break
 
             if skip_msg: 
-                log.debug(f"   跳過: {skip_msg}")
+                log.info(f"   跳過: {skip_msg}")
                 skipped += 1
                 continue
 

@@ -74,10 +74,10 @@ class NotionClient:
 
     def query_pages_by_source(self, database_id: str, source_page_id: str) -> list[str]:
         """
-        批量查询阅读数据库中指定订阅源的所有已存在 URL，返回 URL 集合。
+        批量查询阅读数据库中指定订阅源的所有已存在文章，返回 URL 與標題 集合。
         用于高效去重：避免逐条 API 查询。
         """
-        existing_urls: set[str] = set()
+        existing_urls_titles: set[str] = set()
         body = {
             "filter": {
                 "property": EntryFields.SOURCE,
@@ -85,11 +85,13 @@ class NotionClient:
             },
             "page_size": 100,
         }
-        existing_urls: set[str] = set()
+        existing_urls_titles: set[str] = set()
         for page in self._paginate("POST", f"/databases/{database_id}/query", json=body):
             if (url := page.get("properties", {}).get(EntryFields.URL, {}).get("url","")):
-                existing_urls.add(url)
-        return [*existing_urls]
+                existing_urls_titles.add(url)
+            if (title := page.get("properties", {}).get(EntryFields.NAME, {}).get("title", [])[0].get("plain_text", "")):
+                existing_urls_titles.add(title)
+        return [*existing_urls_titles]
 
     def create_page(
         self,
