@@ -423,7 +423,7 @@ def _to_notion(b: dict) -> Optional[dict]:
                 }}
 
     if t == "code":
-        content = b.get("text", "")[:2000]
+        content = _utf16_truncate(b.get("text", ""))
         return {"object": "block", "type": "code",
                 "code": {"rich_text": [_rt(content)],
                          "language": b.get("language", "plain text")}}
@@ -466,6 +466,31 @@ def _build_table_block(b: dict) -> dict:
 # rich_text 工具函數
 # ─────────────────────────────────────────────
 
+_NOTION_CHAR_LIMIT = 2000
+
+
+def _utf16_len(s: str) -> int:
+    """返回字符串的 UTF-16 代碼單元長度（Notion/JavaScript 的計算方式）。
+    補充平面字符（如 emoji 🐧🦆🌚）佔 2 個 UTF-16 單元，但只佔 1 個 Python 字符。
+    """
+    return len(s.encode("utf-16-le")) // 2
+
+
+def _utf16_truncate(s: str, max_units: int = _NOTION_CHAR_LIMIT) -> str:
+    """將字符串截斷到 UTF-16 代碼單元數 <= max_units。"""
+    if _utf16_len(s) <= max_units:
+        return s
+    result: list[str] = []
+    count = 0
+    for c in s:
+        char_units = 2 if ord(c) > 0xFFFF else 1
+        if count + char_units > max_units:
+            break
+        result.append(c)
+        count += char_units
+    return "".join(result)
+
+
 def _rt(
     content: str,
     bold: bool = False,
@@ -477,7 +502,7 @@ def _rt(
 ) -> dict:
     obj: dict = {
         "type": "text",
-        "text": {"content": content[:2000]},
+        "text": {"content": _utf16_truncate(content)},
         "annotations": {
             "bold": bold,
             "italic": italic,
@@ -494,21 +519,35 @@ def _rt(
 
 def _chunk_rich_text(rt: list[dict]) -> list[dict]:
     """
-    將 rich_text 列表中超過 2000 字的條目切分，
+    將 rich_text 列表中超過 2000 UTF-16 單元的條目切分，
     確保每個 text.content 都在 Notion 的限制內。
     """
     result = []
     for item in rt:
         content = item["text"]["content"]
-        if len(content) <= 2000:
+        if _utf16_len(content) <= _NOTION_CHAR_LIMIT:
             result.append(item)
         else:
-            # 切分，保留相同 annotations
-            for i in range(0, len(content), 2000):
-                chunk = dict(item)
-                chunk["text"] = dict(item["text"])
-                chunk["text"]["content"] = content[i:i + 2000]
-                result.append(chunk)
+            # 按 UTF-16 單元切分，保留相同 annotations
+            chunks: list[str] = []
+            current: list[str] = []
+            current_units = 0
+            for c in content:
+                char_units = 2 if ord(c) > 0xFFFF else 1
+                if current_units + char_units > _NOTION_CHAR_LIMIT:
+                    chunks.append("".join(current))
+                    current = [c]
+                    current_units = char_units
+                else:
+                    current.append(c)
+                    current_units += char_units
+            if current:
+                chunks.append("".join(current))
+            for chunk in chunks:
+                new_item = dict(item)
+                new_item["text"] = dict(item["text"])
+                new_item["text"]["content"] = chunk
+                result.append(new_item)
     return result
 
 
