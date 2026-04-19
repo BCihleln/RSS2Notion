@@ -34,6 +34,10 @@ _CALLOUT_CLASSES = {"callout", "admonition", "alert", "notice", "warning", "note
 # 已知防盜鏈域名，Notion 無法嵌入
 _HOTLINK_BLOCKED = ("sinaimg.cn", "qpic.cn", "gtimg.cn", "mmbiz.qpic.cn", "zhimg.com")
 
+_BLOCK_TAGS = frozenset({
+    "p", "div", "pre", "blockquote", "figure", "table",
+    "h1", "h2", "h3", "h4", "h5", "h6", "hr", "section", "article",
+})
 
 # ─────────────────────────────────────────────
 # 中間格式型別定義（純 dict，方便 debug）
@@ -196,6 +200,9 @@ def _walk_list(node: Tag, list_type: str, indent: int) -> list[dict]:
             if isinstance(child, Tag) and child.name in ("ul", "ol"):
                 nested_type = "bulleted" if child.name == "ul" else "numbered"
                 nested_blocks.extend(_walk_list(child, nested_type, indent + 1))
+            elif isinstance(child, Tag) and child.name in _BLOCK_TAGS:
+                # 區塊級元素（pre、div、p 等）遞歸解析成子 block，不展平進 rich_text
+                nested_blocks.extend(_walk(child, indent + 1))
             else:
                 inline_nodes.append(child)
 
@@ -620,30 +627,5 @@ def entry_to_notion_blocks(entry) -> list[dict]:
 
 # ]
 
-# # 暫時在舊版 converter 裡保留 split_html_to_blocks + markdown_to_notion_blocks
-
-
-# # 然後這樣對比：
-# from rss2notion.utils.converter import split_html_to_blocks, markdown_to_notion_blocks
-
-# def compare(label: str, html: str):
-#     old_blocks_raw = split_html_to_blocks(html)
-#     old_blocks = []
-#     for kind, val in old_blocks_raw:
-#         if kind == "text":
-#             old_blocks.extend(markdown_to_notion_blocks(val))
-#         else:
-#             old_blocks.append({"type": "image", "image": {"external": {"url": val}}})
-    
-#     new_blocks = html_to_notion_blocks(html)
-    
-#     print(f"\n【{label}】舊版 {len(old_blocks)} 塊 / 新版 {len(new_blocks)} 塊")
-#     if old_blocks != new_blocks:
-#         print("  ⚠️  輸出不同")
-#         print("  舊:", json.dumps(old_blocks, ensure_ascii=False))
-#         print("  新:", json.dumps(new_blocks, ensure_ascii=False))
-#     else:
-#         print("  ✓ 輸出相同")
-
-# for tag, html in htmls_for_test:
-#     compare(tag, html)
+# result = html_to_notion_blocks(html)
+# print(result)
