@@ -40,8 +40,8 @@ if __name__ == "__main__":
     # 获取所有活跃订阅
     try:
         subscriptions = get_avaliable_subscriptions(client, 
-            config.feeds_database_id, 
-            config.entries_database_id)
+            config.feeds_datasource_id, 
+            config.entries_datasource_id)
     except Exception as e:
         log.error(f"读取订阅数据库失败: {e}")
         exit(0)
@@ -146,7 +146,7 @@ if __name__ == "__main__":
                     log.debug(f"    blocks: {len(all_blocks)} 个（含 {img_count} 张图片）")
 
                 page = client.create_page(
-                    database_id=config.entries_database_id,
+                    datasource_id=config.entries_datasource_id,
                     entry=entry,
                     source_page_id=subscription.page_id,
                     blocks=first_batch,
@@ -203,7 +203,7 @@ if __name__ == "__main__":
 
             deleted = cleanup_expired_articles(
                 client,
-                database_id=config.entries_database_id,
+                datasource_id=config.entries_datasource_id,
                 cleanup_days=import_days,
                 tz=config.timezone,
                 source_page_id=subscription.page_id,

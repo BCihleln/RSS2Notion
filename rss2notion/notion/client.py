@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 # 用于识别错误 Callout 块的标志 emoji
 _ERROR_BLOCK_EMOJI = "⚠️"
-
+_NOTION_API_VERSION = "2025-09-03"
 
 class NotionClient:
     BASE = "https://api.notion.com/v1"
@@ -24,7 +24,7 @@ class NotionClient:
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "Notion-Version": "2022-06-28",
+            "Notion-Version": _NOTION_API_VERSION,
         }
         self.retry_times = retry_times
         self.retry_delay = retry_delay
@@ -72,7 +72,7 @@ class NotionClient:
     # 阅读数据库操作
     # ─────────────────────────────────────────────
 
-    def query_pages_by_source(self, database_id: str, source_page_id: str) -> list[str]:
+    def query_pages_by_source(self, datasource_id: str, source_page_id: str) -> list[str]:
         """
         批量查询阅读数据库中指定订阅源的所有已存在文章，返回 URL 與標題 集合。
         用于高效去重：避免逐条 API 查询。
@@ -86,7 +86,7 @@ class NotionClient:
             "page_size": 100,
         }
         existing_urls_titles: set[str] = set()
-        for page in self._paginate("POST", f"/databases/{database_id}/query", json=body):
+        for page in self._paginate("POST", f"/data_sources/{datasource_id}/query", json=body):
             if (url := page.get("properties", {}).get(EntryFields.URL, {}).get("url","")):
                 existing_urls_titles.add(url)
             if (title := page.get("properties", {}).get(EntryFields.NAME, {}).get("title", [])[0].get("plain_text", "")):
@@ -95,7 +95,7 @@ class NotionClient:
 
     def create_page(
         self,
-        database_id: str,
+        datasource_id: str,
         entry,
         source_page_id: str | None = None,
         blocks: list[dict] | None = None,
@@ -103,14 +103,14 @@ class NotionClient:
         """创建阅读数据库页面
         
         Args:
-            database_id: 数据库 ID
+            datasource_id: 数据库 ID
             entry: RSS 条目对象
             source_page_id: 订阅源页面 ID（可选）
             blocks: Notion blocks 列表。若提供，则包含全文内容；否则仅保存元数据
         """
         properties = _build_entry_properties(entry, source_page_id)
         payload: dict = {
-            "parent": {"database_id": database_id},
+            "parent": {"type": "data_source_id", "data_source_id": datasource_id},
             "properties": properties,
         }
         if blocks:

@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 def cleanup_expired_articles(
     client: NotionClient,
-    database_id: str,
+    datasource_id: str,
     cleanup_days: int,
     tz: ZoneInfo,
     source_page_id: str | None = None,
@@ -25,7 +25,7 @@ def cleanup_expired_articles(
 
     Args:
         client:         NotionClient 实例
-        database_id:    文章数据库 ID
+        datasource_id:    文章数据库 ID
         cleanup_days:   保留天数；-1 时跳过清理
         tz:             时区（用于计算截止日期）
         source_page_id: 若提供，只清理该订阅源的文章；None 则清理全库（不建议单独使用）
@@ -64,7 +64,7 @@ def cleanup_expired_articles(
     }
 
     deleted_count = 0
-    pages_should_deleted = client._paginate("POST", f"/databases/{database_id}/query", json=body)
+    pages_should_deleted = client._paginate("POST", f"/data_sources/{datasource_id}/query", json=body)
     for page in pages_should_deleted:
         try:
             log.info(f"   刪除：{page['url']}")

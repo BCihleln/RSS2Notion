@@ -69,7 +69,7 @@ def import_opml(opml_path: str | Path, config: Config) -> dict:
     )
 
     # 批量查詢已存在的 URL，避免逐條查詢
-    existing_urls = _fetch_all_feed_urls(client, config.feeds_database_id)
+    existing_urls = _fetch_all_feed_urls(client, config.feeds_datasource_id)
     log.info(f"Notion 中已有 {len(existing_urls)} 條訂閱源（用於去重）")
 
     added = skipped = failed = 0
@@ -95,7 +95,7 @@ def import_opml(opml_path: str | Path, config: Config) -> dict:
 
             _create_feed_page(
                 client=client,
-                database_id=config.feeds_database_id,
+                datasource_id=config.feeds_datasource_id,
                 title=entry.title or entry.xml_url,
                 xml_url=entry.xml_url,
                 icon_url=icon_url,
@@ -140,7 +140,7 @@ def export_opml(output_path: str | Path, config: Config) -> None:
         retry_delay=config.retry_delay,
     )
 
-    subscriptions = _fetch_all_subscriptions(client, config.feeds_database_id)
+    subscriptions = _fetch_all_subscriptions(client, config.feeds_datasource_id)
     log.info(f"共讀取到 {len(subscriptions)} 條訂閱源")
 
     # 按第一個 Tag 分組；無 Tag 歸入 "Uncategorized"
@@ -222,11 +222,11 @@ def _outline_to_entry(outline: ET.Element, group: str) -> _OPMLEntry:
     )
 
 
-def _fetch_all_feed_urls(client: NotionClient, database_id: str) -> set[str]:
+def _fetch_all_feed_urls(client: NotionClient, datasource_id: str) -> set[str]:
     """批量取得訂閱數據庫中所有已存在的 xmlUrl，回傳 URL 集合（用於去重）"""
     urls: set[str] = set()
     body: dict = {"page_size": 100}
-    pages = client._paginate("POST", f"/databases/{database_id}/query", json=body)
+    pages = client._paginate("POST", f"/data_sources/{datasource_id}/query", json=body)
     for page in pages:
         if (url := 
             page.get("properties", {})
@@ -236,11 +236,11 @@ def _fetch_all_feed_urls(client: NotionClient, database_id: str) -> set[str]:
     return urls
 
 
-def _fetch_all_subscriptions(client: NotionClient, database_id: str) -> list[dict]:
+def _fetch_all_subscriptions(client: NotionClient, datasource_id: str) -> list[dict]:
     """取得訂閱數據庫的全部訂閱（含 Disabled），回傳簡易 dict 列表"""
     subs = []
     body: dict = {"page_size": 100}
-    pages = client._paginate("POST", f"/databases/{database_id}/query", json=body)
+    pages = client._paginate("POST", f"/data_sources/{datasource_id}/query", json=body)
     for page in pages:
         props = page.get("properties", {})
         url = props.get(SubscriptionFields.URL, {}).get("url", "")
@@ -261,7 +261,7 @@ def _fetch_all_subscriptions(client: NotionClient, database_id: str) -> list[dic
 
 def _create_feed_page(
     client: NotionClient,
-    database_id: str,
+    datasource_id: str,
     title: str,
     xml_url: str,
     icon_url: str,
@@ -270,7 +270,7 @@ def _create_feed_page(
     """在訂閱數據庫中建立一個新的訂閱源頁面"""
 
     payload: dict = {
-        "parent": {"database_id": database_id},
+        "parent": {"type": "data_source_id", "data_source_id": datasource_id},
         "properties": {
             SubscriptionFields.NAME: {
                 "title": [{"text": {"content": title[:2000]}}]

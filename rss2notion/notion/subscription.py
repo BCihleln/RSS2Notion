@@ -12,8 +12,8 @@ log = logging.getLogger(__name__)
 
 def get_avaliable_subscriptions(
         client: NotionClient, 
-        subscirption_database_id: str, 
-        entries_database_id: str,
+        subscirption_datasource_id: str, 
+        entries_datasource_id: str,
         ) -> list[Subscription]:
     """从订阅数据库读取所有 Status 為 Active/Empty 的 Page """
     body: dict = {
@@ -33,13 +33,13 @@ def get_avaliable_subscriptions(
     }
     log.debug("開始獲取訂閲源")
     subscriptions = []
-    pages = client._paginate("POST", f"/databases/{subscirption_database_id}/query", json=body)
+    pages = client._paginate("POST", f"/data_sources/{subscirption_datasource_id}/query", json=body)
     for page in pages:
         sub = _parse_subscription(page)
         if isinstance(sub, Subscription):
             page_blocks = client.get_block_children(page["id"])
             sub.accumulated_errors = [b for b in page_blocks if (b.get("type") == "callout")] # 篩選出 callout 塊作爲已累積的錯誤快
-            sub.existing_articles = client.query_pages_by_source(entries_database_id, page["id"])
+            sub.existing_articles = client.query_pages_by_source(entries_datasource_id, page["id"])
             subscriptions.append(sub)
             cleanup_str = f"，Cleanup Days 覆寫: {sub.fetch_days}" if sub.fetch_days is not None else ""
             log.debug(f"   訂閲源獲取 ✓ : {sub.name} 已有 {len(sub.existing_articles)} 條文章记录{cleanup_str}")

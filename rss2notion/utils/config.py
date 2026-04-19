@@ -10,8 +10,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 @dataclass
 class Config:
     notion_api_key: str
-    entries_database_id: str           # 文章数据库 ID
-    feeds_database_id: str             # 订阅数据库 ID
+    entries_datasource_id: str           # 文章数据库 ID
+    feeds_datasource_id: str             # 订阅数据库 ID
     timezone: ZoneInfo                 # 时区对象
     cleanup_days: int                  # 清理天数，-1 表示不清理
     max_import_count: int = 5          # 單訂閱源文章導入時，未限定時間範圍的數量上限
@@ -29,12 +29,12 @@ class Config:
         if not api_key:
             missing.append("NOTION_API_KEY")
 
-        database_id = os.environ.get("NOTION_ARTICLES_DATABASE_ID", "")
-        if not database_id:
+        datasource_id = os.environ.get("NOTION_ARTICLES_DATABASE_ID", "")
+        if not datasource_id:
             missing.append("NOTION_ARTICLES_DATABASE_ID")
 
-        sub_database_id = os.environ.get("NOTION_FEEDS_DATABASE_ID", "")
-        if not sub_database_id:
+        sub_datasource_id = os.environ.get("NOTION_FEEDS_DATABASE_ID", "")
+        if not sub_datasource_id:
             missing.append("NOTION_FEEDS_DATABASE_ID")
 
         if missing:
@@ -54,8 +54,8 @@ class Config:
 
         return cls(
             notion_api_key=api_key,
-            entries_database_id=database_id,
-            feeds_database_id=sub_database_id,
+            entries_datasource_id=datasource_id,
+            feeds_datasource_id=sub_datasource_id,
             timezone=tz,
             cleanup_days=cleanup_days,
         )
