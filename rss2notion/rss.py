@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timezone
 
 import feedparser
+import re
 from time import struct_time
 
 from .models import RSSEntry, Subscription
@@ -49,7 +50,24 @@ def _parse_entry_published(entry:dict, feed_updated_tuple: struct_time) -> datet
     tuple:struct_time = entry.get("published_parsed") or entry.get("updated_parsed") or feed_updated_tuple
     if tuple:
         return datetime(tuple.tm_year, tuple.tm_mon, tuple.tm_mday, tuple.tm_hour, tuple.tm_min, tuple.tm_sec, tzinfo=timezone.utc)
-    else: return datetime.now(tz=timezone.utc)
+    else: # 嘗試從文章內容提取日期
+        text = entry.get("summary", "") + _parse_entry_content(entry)
+        if extracted := _extract_date_from_text(text):
+            log.debug(f"   從內文提取到日期：{extracted.date()}")
+            return extracted
+        return datetime.now(tz=timezone.utc)
+
+def _extract_date_from_text(text: str) -> datetime | None:
+    """從文字中嘗試 regex 提取日期（用於缺失 published 字段時的備援）"""
+    date_pattern = [
+        r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', # CJK 格式：2025年4月19日
+        r'\b(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})\b', # ISO-like 格式：2025.04.19 / 2025/04/19 / 2025-04-19
+    ]
+    for pattern_try in date_pattern:
+        if m := re.search(pattern_try, text):
+            try: return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)), tzinfo=timezone.utc) 
+            except ValueError: continue  # 命中但值不合法，試下一個 pattern
+    return None
 
 def parse_rss(subscirption: Subscription) -> list[RSSEntry]:
     """解析 RSS feed，返回条目列表"""
