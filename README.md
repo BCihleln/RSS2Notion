@@ -264,8 +264,8 @@ uv run python tools/opml.py
 
 ## 🙏 Acknowledgements
 
-- [lcoolcool/notion-rss-reader](https://github.com/lcoolcool/notion-rss-reader) — Inspiration
-- [lcoolcool/RSS-to-Notion](https://github.com/lcoolcool/RSS-to-Notion) — Inspiration
+- [lcoolcool/RSS2Notion](https://github.com/lcoolcool/RSS2Notion) — Inspiration
+- [Yutu0k/RSS-to-Notion](https://github.com/Yutu0k/RSS-to-Notion) — Fork Source
 - [feedparser](https://github.com/kurtmckee/feedparser) — RSS parsing
 - [beautifulsoup4](https://www.crummy.com/software/BeautifulSoup/) — HTML parsing
 
