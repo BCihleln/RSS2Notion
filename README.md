@@ -15,23 +15,47 @@ English | [简体中文](./README_ZH.md) | [繁體中文](./README_TW.md)
 
 ![Overview](./docs/images/overview.png)
 
+## 🎯 What This Project Does (and Doesn't)
+
+**This project solves one specific problem:** you have a collection of RSS feeds and want to read them inside Notion — with proper formatting, reading state tracking, and automatic cleanup — without running a separate RSS reader app.
+
+It is a sync bridge, not a feed generator. The assumed workflow is:
+
+1. A website already publishes an RSS/Atom feed, or there may be community-shared feed sources.
+2. This tool fetches it, renders the HTML content into Notion blocks, and keeps your reading database tidy
+
+**Explicitly out of scope:**
+
+- **Generating RSS feeds from websites that don't have one** — whether from static pages (CSS selector scraping) or JavaScript-rendered pages. This is a distinct problem that belongs in a separate tool.
+- **Fetching full article text from the web** — only the HTML already present in the feed's `content` or `summary` field is rendered. If a feed provides truncated summaries, that is all you will get.
+- **Being a general-purpose RSS reader** — there is no additonal browser extension, mobile client, or sync-to-read-later flow. Notion is the only reading surface.
+
+If your primary need is to *create* RSS feeds from websites that don't publish them, this project is not the right starting point.
+
 ---
 
 ## ✨ Features
 
-- **Notion-based subscription management** — Add, edit, and disable RSS sources directly in Notion, no config files needed
-- **Feed content rendering** — Converts the HTML content already included in the RSS feed (`content` or `summary` fields) into rich Notion blocks, preserving headings, lists, code blocks, tables, quotes, and inline formatting
-- **Image-text layout** — Article images embedded in the feed content are preserved and interleaved with text in Notion pages
+**Notion Subscription Management**  
+Add, edit, and disable RSS sources directly in Notion — no config files needed:
+- **Source relation** — Each article is linked back to its subscription via Notion Relation
 - **Smart deduplication** — Timestamp-based filtering + batch URL lookup to efficiently avoid duplicate entries
 - **Per-subscription overrides** — Each feed can independently set its own cleanup window (`Cleanup Days`) and article fetch limit (`Fetch Amount`)
 - **Keyword filtering** — Per-subscription blocklist (`Filterout`) to skip articles whose title or URL matches specified keywords
+- **Error tracking** — Failed syncs append timestamped error callout blocks to the subscription page; status is only upgraded to `Error` after a configurable number of consecutive failures
+
+**Feed Content Rendering**  
+Converts the HTML content already included in the RSS feed (`content` or `summary` fields) into rich Notion blocks, preserving headings, lists, code blocks, tables, quotes, and inline formatting:
 - **Cover image extraction** — Automatically picks the first article image or channel logo as the page cover
+- **Image-text layout** — Article images embedded in the feed content are preserved and interleaved with text in Notion pages
+
+**Article State Management**
 - **Reading state tracking** — New articles are automatically marked `Unread`; supports `Reading` / `Star` states
-- **Source relation** — Each article is linked back to its subscription via Notion Relation
-- **Error tracking** — Failed syncs append timestamped error callout blocks to the subscription page; status is upgraded to `Error` after a configurable number of consecutive failures
-- **Auto cleanup** — Deletes articles older than the configured window (per-subscription or global) to keep your database tidy
+- **Auto cleanup** — Deletes articles older than the configured window to keep your database tidy (supports per-subscription override)
+
+**Other Conveniences**
 - **Concurrent RSS fetching** — All feeds are fetched in parallel, then written to Notion serially to respect rate limits
-- **Page locking** — Newly created article pages are automatically locked to prevent accidental edits
+- **Page locking** — Newly created article pages are automatically locked to prevent accidental edits in database view
 - **OPML import/export** — Bulk-import from an OPML file; export your entire subscription list back to OPML
 - **Scheduled via GitHub Actions** — Runs automatically every 8 hours, no server required
 

@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 RSS2Notion 是一個將 RSS 訂閱內容同步到 Notion 數據庫的 Python 工具，通過 GitHub Actions 每 8 小時自動運行。RSS 訂閱源從 Notion 訂閱數據庫讀取，將 Feed 中已包含的 HTML 內容（`content` 或 `summary` 字段）渲染為 Notion 塊，並支持關鍵詞過濾、訂閱源級別覆寫，以及自動清理過期文章。
 
+## 設計邊界
+
+本項目是一個**同步橋接工具**，預設用戶已有可用的 RSS/Atom 訂閱源。以下問題明確超出範圍，不應在此倉庫中實現：
+
+- 從靜態網頁（CSS 選擇器抓取）產生 RSS 訂閱源
+- 從 JavaScript 渲染的動態頁面抓取內容
+- 從原始網頁抓取全文（Full-text import）
+
+渲染的內容來源僅限於 RSS Feed 條目中 `content` 或 `summary` 字段已包含的 HTML 字符串。
+
 ## 開發環境
 
 ```bash
