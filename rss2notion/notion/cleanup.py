@@ -13,44 +13,26 @@ from ..schema import EntryFields, StateValues
 log = logging.getLogger(__name__)
 
 
-def cleanup_expired_articles(
+def cleanup_filtered_articles(
     client: NotionClient,
     datasource_id: str,
-    cleanup_days: int,
-    tz: ZoneInfo,
+    filters: list[dict], 
     source_page_id: str | None = None,
 ) -> int:
     """
-    清理 State!=STARRED 且 Published 超过 cleanup_days 天的文章。
+    清理 filters 範圍指定的文章。
 
     Args:
         client:         NotionClient 实例
-        datasource_id:    文章数据库 ID
-        cleanup_days:   保留天数；-1 时跳过清理
-        tz:             时区（用于计算截止日期）
+        datasource_id:  文章数据库 ID
         source_page_id: 若提供，只清理该订阅源的文章；None 则清理全库（不建议单独使用）
 
     删除操作实为移入 Notion 回收站（30 天内可恢复）。
     返回删除数量。
     """
-    if cleanup_days <= 0:
-        log.debug(f"自动清理已禁用（清理天數 : {cleanup_days}），跳过")
+    if not filters: # filter 為空跳過，自動保護避免刪除全部文章
+        log.error(f"自动清理未設定範圍，跳过")
         return 0
-
-    cutoff = (datetime.now(tz) - timedelta(days=cleanup_days)).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    cutoff_iso = cutoff.isoformat()
-    filters: list[dict] = [
-        {
-            "property": EntryFields.STATE,
-            "select": {"does_not_equal": StateValues.STARRED},
-        },
-        {
-            "property": EntryFields.PUBLISHED,
-            "date": {"before": cutoff_iso},
-        },
-    ]
 
     if source_page_id:
         filters.append({

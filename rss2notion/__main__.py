@@ -15,8 +15,9 @@ from .models import Subscription, RSSEntry
 from .sync import fetch_subscription, fetch_failed, fetch_success
 
 from .notion.client import NotionClient
-from .notion.cleanup import cleanup_expired_articles
+from .notion.cleanup import cleanup_filtered_articles
 from .notion.subscription import get_avaliable_subscriptions
+from .schema import EntryFields, StateValues
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -89,8 +90,8 @@ if __name__ == "__main__":
             import_days = config.cleanup_days
 
         import_msg = ""
+        cutoff = (datetime.now(config.timezone) - timedelta(days=import_days)).replace(hour=0,minute=0,second=0, microsecond=0)
         if import_days > 0:
-            cutoff = (datetime.now(config.timezone) - timedelta(days=import_days)).replace(hour=0,minute=0,second=0, microsecond=0)
             entries = [e for e in entries if e.published >= cutoff]
             import_msg = f"{is_overwrite_str}最近 {import_days} 天 (自 {cutoff})"
         else: # 無時限時限定導入的最大數量 (避免全量導入)
@@ -195,21 +196,35 @@ if __name__ == "__main__":
 
         # ── 階段三：處理往期文章 ──
         # 每個訂閲源可獨立覆寫 cleanup_days 值，未設定則沿用全局默認值
-        # cleanup_days <= 0：手動管理往期文章，不自動刪除
-        # cleanup_days >  0：自動刪除指定期限以前的往期文章
+        log.debug(f"   清理配置：{import_days} 天{is_overwrite_str}")
         deleted = 0
-        if import_days > 0:
-            log.debug(f"   清理 {import_days} 天{is_overwrite_str}前的未星號文章")
-
-            deleted = cleanup_expired_articles(
+        filters:list[dict] = []
+        if import_days > 0: # 自動刪除指定期限以前的往期文章
+            log.debug(f"   清理 {import_days} 天前的未星號文章")
+            filters = [
+                {
+                    "property": EntryFields.STATE,
+                    "select": {"does_not_equal": StateValues.STARRED},
+                },
+                {
+                    "property": EntryFields.PUBLISHED,
+                    "date": {"before": cutoff.isoformat()},
+                },
+            ]
+        else: # 自動刪除已讀文章
+            log.debug(f"   僅清理已讀文章")
+            filters = [
+                {
+                    "property": EntryFields.STATE,
+                    "select": {"is_empty": True},
+                }
+            ]
+        deleted = cleanup_filtered_articles(
                 client,
                 datasource_id=config.entries_datasource_id,
-                cleanup_days=import_days,
-                tz=config.timezone,
                 source_page_id=subscription.page_id,
-            )
-            if deleted:
-                log.info(f"   ✓ 已刪除 {deleted} 篇過期文章")
+                filters= filters)
+        if deleted: log.info(f"   ✓ 已刪除 {deleted} 篇過期文章")
         total_deleted += deleted
 
         write_str = f" 寫入: {written} " if written > 0 else ""

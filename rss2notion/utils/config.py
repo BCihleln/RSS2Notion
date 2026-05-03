@@ -14,7 +14,7 @@ class Config:
     feeds_datasource_id: str             # 订阅数据库 ID
     timezone: ZoneInfo                 # 时区对象
     cleanup_days: int                  # 清理天数，-1 表示不清理
-    max_import_count: int = 5          # 單訂閱源文章導入時，未限定時間範圍的數量上限
+    max_import_count: int = 1          # 單訂閱源文章導入時，未限定時間範圍的數量上限
     notion_block_limit: int = 100      # 首批写入 block 上限
     retry_times: int = 3
     retry_delay: float = 2.0
