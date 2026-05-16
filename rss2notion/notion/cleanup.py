@@ -18,6 +18,7 @@ def cleanup_filtered_articles(
     datasource_id: str,
     filters: list[dict], 
     source_page_id: str | None = None,
+    keep_latest_count: int | None = None,
 ) -> int:
     """
     清理 filters 範圍指定的文章。
@@ -45,8 +46,20 @@ def cleanup_filtered_articles(
         "page_size": 100,
     }
 
+    if keep_latest_count and keep_latest_count > 0:
+        body["sorts"] = [
+            {
+                "property": EntryFields.PUBLISHED,
+                "direction": "descending"
+            }
+        ]
+
     deleted_count = 0
-    pages_should_deleted = client._paginate("POST", f"/data_sources/{datasource_id}/query", json=body)
+    pages_should_deleted = list(client._paginate("POST", f"/data_sources/{datasource_id}/query", json=body))
+
+    if keep_latest_count and keep_latest_count > 0:
+        pages_should_deleted = pages_should_deleted[keep_latest_count:]
+
     for page in pages_should_deleted:
         try:
             log.info(f"   刪除：{page['url']}")

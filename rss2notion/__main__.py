@@ -199,6 +199,7 @@ if __name__ == "__main__":
         log.debug(f"   清理配置：{import_days} 天{is_overwrite_str}")
         deleted = 0
         filters:list[dict] = []
+        keep_latest_count = None
         if import_days > 0: # 自動刪除指定期限以前的往期文章
             log.debug(f"   清理 {import_days} 天前的未星號文章")
             filters = [
@@ -219,11 +220,15 @@ if __name__ == "__main__":
                     "select": {"is_empty": True},
                 }
             ]
+            if subscription.fetch_amount:
+                keep_latest_count = subscription.fetch_amount
+
         deleted = cleanup_filtered_articles(
                 client,
                 datasource_id=config.entries_datasource_id,
                 source_page_id=subscription.page_id,
-                filters= filters)
+                filters= filters,
+                keep_latest_count=keep_latest_count)
         if deleted: log.info(f"   ✓ 已刪除 {deleted} 篇過期文章")
         total_deleted += deleted
 
