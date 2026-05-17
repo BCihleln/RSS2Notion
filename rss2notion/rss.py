@@ -5,12 +5,11 @@ RSS 解析：获取订阅条目
 import logging
 from datetime import datetime, timezone
 
-import feedparser
 import re
 from time import struct_time
 
 from .models import RSSEntry, Subscription
-from .utils.fetcher import fetch_feed_content
+from .utils.fetcher import fetch_and_parse_feed
 
 log = logging.getLogger(__name__)
 
@@ -73,11 +72,8 @@ def parse_rss(subscirption: Subscription) -> list[RSSEntry]:
     """解析 RSS feed，返回条目列表"""
     log.debug(f"   解析 RSS: {subscirption.url}")
     
-    # 透過 fetcher 獲取內容 (自帶 User-Agent 與 SSL 回退)
-    raw_content = fetch_feed_content(subscirption.url)
-    
-    # 將獲取到的 bytes 交給 feedparser 解析
-    parse_result = feedparser.parse(raw_content)
+    # 透過 fetcher 進行多階段獲取與解析
+    parse_result = fetch_and_parse_feed(subscirption.url)
 
     # 如果有 bozo 错误但没有 entries，无法继续
     if parse_result.bozo:
