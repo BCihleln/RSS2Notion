@@ -126,18 +126,24 @@ flowchart TD
 
 ![Integration](./docs/images/integration.png)
 
-### 步驟 3：取得資料庫 ID
+### 步驟 3：取得 Data Source ID
 
-從 Notion 資料庫頁面的 URL 中擷取 ID：
+本專案使用 Notion data source API。為了相容既有設定，Secret 名稱仍維持不變，但實際請填入 **data source ID**。
+
+建議做法：在 Notion 開啟各資料庫，進入 **Manage data sources**，打開目標 data source 的選單，點擊 **Copy data source ID**。
+
+如果從 URL 複製 ID，請確認它指向已分享給 integration 的原始資料庫 / data source，而不是 linked database：
 
 ```
 https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                     這一段（32 位）即為資料庫 ID
+                                     這一段（32 位）即為 ID
 ```
 
-- **文章資料庫 ID** → `NOTION_ARTICLES_DATABASE_ID`
-- **訂閱資料庫 ID** → `NOTION_FEEDS_DATABASE_ID`
+- **文章 data source ID** → `NOTION_ARTICLES_DATABASE_ID`
+- **訂閱 data source ID** → `NOTION_FEEDS_DATABASE_ID`
+
+RSS2Notion 啟動時會先檢查這兩個 ID 是否可讀、必要欄位是否存在、欄位類型是否與 `rss2notion/schema.py` 一致。若檢查失敗，GitHub Actions log 會說明是 ID 錯誤、integration 未分享，還是欄位被改名 / 改型別。
 
 ### 步驟 4：Fork 倉庫並設定 Secrets
 
@@ -148,8 +154,8 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 | Secret 名稱 | 說明 |
 |------------|------|
 | `NOTION_API_KEY` | Notion Integration Token |
-| `NOTION_ARTICLES_DATABASE_ID` | 文章資料庫 ID |
-| `NOTION_FEEDS_DATABASE_ID` | 訂閱資料庫 ID |
+| `NOTION_ARTICLES_DATABASE_ID` | 文章 data source ID |
+| `NOTION_FEEDS_DATABASE_ID` | 訂閱 data source ID |
 
 ![Secrets](./docs/images/secrets.png)
 
@@ -184,8 +190,8 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 | 環境變數 | 必填 | 預設值 | 說明 |
 |---------|:----:|--------|------|
 | `NOTION_API_KEY` | ✅ | — | Notion Integration Token |
-| `NOTION_ARTICLES_DATABASE_ID` | ✅ | — | 閱讀資料庫 ID |
-| `NOTION_FEEDS_DATABASE_ID` | ✅ | — | 訂閱資料庫 ID |
+| `NOTION_ARTICLES_DATABASE_ID` | ✅ | — | 閱讀 data source ID |
+| `NOTION_FEEDS_DATABASE_ID` | ✅ | — | 訂閱 data source ID |
 | `TIMEZONE` | — | `Asia/Shanghai` | IANA 時區名稱 |
 | `CLEANUP_DAYS` | — | `30` | 全域保留天數；`-1` 則匯入全部歷史資料且停用自動清理 |
 
@@ -204,6 +210,8 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 ---
 
 ## 🗃️ Notion 資料庫說明
+
+啟動前 sanity check 會先驗證下列 schema，再開始抓取 RSS。若修改 Notion property 名稱，請同步更新 `rss2notion/schema.py`；若修改 property 類型或 relation 目標，同步會停止並列出需要修復的欄位。
 
 ### 訂閱資料庫屬性
 
@@ -242,8 +250,8 @@ uv sync
 
 # 設定環境變數
 export NOTION_API_KEY=your_token
-export NOTION_ARTICLES_DATABASE_ID=your_reading_db_id
-export NOTION_FEEDS_DATABASE_ID=your_subscription_db_id
+export NOTION_ARTICLES_DATABASE_ID=your_reading_data_source_id
+export NOTION_FEEDS_DATABASE_ID=your_subscription_data_source_id
 
 # 執行
 uv run python -m rss2notion

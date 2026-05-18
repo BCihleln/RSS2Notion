@@ -68,6 +68,10 @@ class NotionClient:
             next_cursor = result.get("next_cursor")
         return results
 
+    def retrieve_data_source(self, data_source_id: str) -> dict:
+        """Retrieve a Notion data source schema, including its properties."""
+        return self._request("GET", f"/data_sources/{data_source_id}")
+
     # ─────────────────────────────────────────────
     # 阅读数据库操作
     # ─────────────────────────────────────────────

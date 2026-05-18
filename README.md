@@ -126,18 +126,24 @@ The template includes two databases:
 
 ![Integration](./docs/images/integration.png)
 
-### Step 3: Get Database IDs
+### Step 3: Get Data Source IDs
 
-Extract the database ID from the Notion page URL:
+This project uses Notion's data source API. Keep the existing secret names for compatibility, but fill them with **data source IDs**.
+
+Recommended: open each database in Notion, choose **Manage data sources**, open the data source menu, and click **Copy data source ID**.
+
+If you copy an ID from the URL, make sure it points to the original database/data source shared with your integration, not a linked database:
 
 ```
 https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                     This 32-character segment is the Database ID
+                                     This 32-character segment is the ID
 ```
 
-- **Articles Database ID** → `NOTION_ARTICLES_DATABASE_ID`
-- **Subscription Database ID** → `NOTION_FEEDS_DATABASE_ID`
+- **Articles data source ID** → `NOTION_ARTICLES_DATABASE_ID`
+- **Subscription data source ID** → `NOTION_FEEDS_DATABASE_ID`
+
+At startup, RSS2Notion validates that both IDs are readable, required properties exist, and property types match `rss2notion/schema.py`. If validation fails, the GitHub Actions log will explain whether the ID is wrong, the integration is not shared, or a property was renamed/changed.
 
 ### Step 4: Fork the Repository and Configure Secrets
 
@@ -148,8 +154,8 @@ https://www.notion.so/your-workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=...
 | Secret Name | Description |
 |------------|-------------|
 | `NOTION_API_KEY` | Notion Integration Token |
-| `NOTION_ARTICLES_DATABASE_ID` | Reading Database ID |
-| `NOTION_FEEDS_DATABASE_ID` | Subscription Database ID |
+| `NOTION_ARTICLES_DATABASE_ID` | Reading data source ID |
+| `NOTION_FEEDS_DATABASE_ID` | Subscription data source ID |
 
 ![Secrets](./docs/images/secrets.png)
 
@@ -184,8 +190,8 @@ After that, the sync runs automatically every 8 hours.
 | Variable | Required | Default | Description |
 |---------|:--------:|---------|-------------|
 | `NOTION_API_KEY` | ✅ | — | Notion Integration Token |
-| `NOTION_ARTICLES_DATABASE_ID` | ✅ | — | Reading Database ID |
-| `NOTION_FEEDS_DATABASE_ID` | ✅ | — | Subscription Database ID |
+| `NOTION_ARTICLES_DATABASE_ID` | ✅ | — | Reading data source ID |
+| `NOTION_FEEDS_DATABASE_ID` | ✅ | — | Subscription data source ID |
 | `TIMEZONE` | — | `Asia/Shanghai` | IANA timezone name |
 | `CLEANUP_DAYS` | — | `30` | Global retention window. `-1` imports all history and disables cleanup |
 
@@ -204,6 +210,8 @@ These are defined in `rss2notion/utils/config.py` and can be adjusted directly:
 ---
 
 ## 🗃️ Notion Database Schema
+
+The startup sanity check validates this schema before fetching RSS feeds. If you rename a Notion property, update `rss2notion/schema.py` to match. If you change a property type or relation target, the sync will stop and print the property that needs to be fixed.
 
 ### Subscription Database
 
@@ -242,8 +250,8 @@ uv sync
 
 # Set environment variables
 export NOTION_API_KEY=your_token
-export NOTION_ARTICLES_DATABASE_ID=your_reading_db_id
-export NOTION_FEEDS_DATABASE_ID=your_subscription_db_id
+export NOTION_ARTICLES_DATABASE_ID=your_reading_data_source_id
+export NOTION_FEEDS_DATABASE_ID=your_subscription_data_source_id
 
 # Run
 uv run python -m rss2notion

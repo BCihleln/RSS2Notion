@@ -17,6 +17,7 @@ from .sync import fetch_subscription, fetch_failed, fetch_success
 from .notion.client import NotionClient
 from .notion.cleanup import cleanup_filtered_articles
 from .notion.subscription import get_avaliable_subscriptions
+from .notion.validation import SchemaValidationError, validate_notion_setup
 from .schema import EntryFields, StateValues
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -37,6 +38,12 @@ if __name__ == "__main__":
         retry_times=config.retry_times,
         retry_delay=config.retry_delay,
     )
+
+    try:
+        validate_notion_setup(client, config)
+    except SchemaValidationError as e:
+        log.error(str(e))
+        exit(1)
 
     # 获取所有活跃订阅
     try:
