@@ -14,6 +14,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Connect to Tailscale network to access the self-hosted RSSHub on NAS
+      # Details can be found in: docs/tailscale-github-actions-implementation-plan.md
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
@@ -30,4 +39,6 @@ jobs:
           NOTION_FEEDS_DATABASE_ID: ${{ secrets.NOTION_FEEDS_DATABASE_ID }}
           TIMEZONE: ${{ vars.TIMEZONE || 'Asia/Shanghai' }}
           CLEANUP_DAYS: ${{ vars.CLEANUP_DAYS || '30' }}
+          RSSHUB_BASE_URL: ${{ vars.RSSHUB_BASE_URL }}
+          RSSHUB_ACCESS_KEY: ${{ secrets.RSSHUB_ACCESS_KEY }}
         run: uv run python -m rss2notion

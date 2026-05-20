@@ -3,6 +3,9 @@ import requests
 import urllib3
 import feedparser
 import urllib.error
+import hashlib
+import os
+from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 from urllib3.exceptions import InsecureRequestWarning
 
 log = logging.getLogger(__name__)
@@ -14,6 +17,49 @@ DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
+def sign_rsshub_url(url: str) -> str:
+    """
+    If url matches RSSHUB_BASE_URL and RSSHUB_ACCESS_KEY is set,
+    automatically append the MD5 access code query parameter as required by RSSHub's ACCESS_KEY feature.
+    """
+    access_key = os.environ.get("RSSHUB_ACCESS_KEY")
+    base_url = os.environ.get("RSSHUB_BASE_URL")
+    if not access_key or not base_url:
+        return url
+
+    try:
+        url_parsed = urlparse(url)
+        base_parsed = urlparse(base_url)
+
+        # Check if the network location (domain + port) matches
+        if url_parsed.netloc and url_parsed.netloc == base_parsed.netloc:
+            route_path = url_parsed.path
+            if not route_path.startswith('/'):
+                route_path = '/' + route_path
+
+            # RSSHub MD5 format: md5(route_path + access_key)
+            text_to_hash = route_path + access_key
+            code = hashlib.md5(text_to_hash.encode('utf-8')).hexdigest()
+
+            query_params = dict(parse_qsl(url_parsed.query))
+            query_params['code'] = code
+
+            new_query = urlencode(query_params)
+            signed_url = urlunparse((
+                url_parsed.scheme,
+                url_parsed.netloc,
+                url_parsed.path,
+                url_parsed.params,
+                new_query,
+                url_parsed.fragment
+            ))
+            log.debug(f"   自動對 RSSHub URL 進行簽名安全訪問")
+            return signed_url
+    except Exception as e:
+        log.warning(f"   簽名 RSSHub URL 失敗: {e}")
+
+    return url
+
 def fetch_and_parse_feed(url: str, timeout: int = 15) -> feedparser.FeedParserDict:
     """
     Multi-stage fetch and parse strategy for RSS feeds:
@@ -23,6 +69,7 @@ def fetch_and_parse_feed(url: str, timeout: int = 15) -> feedparser.FeedParserDi
     
     Raises Exceptions for HTTP 301, 410, or if all fallbacks fail.
     """
+    url = sign_rsshub_url(url)
     log.debug(f"   Fetch [Stage 1] 使用 feedparser 預設方式獲取: {url}")
     d = feedparser.parse(url)
     
