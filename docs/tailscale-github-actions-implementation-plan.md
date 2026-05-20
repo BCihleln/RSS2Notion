@@ -97,7 +97,17 @@ def sign_rsshub_url(url: str) -> str:
 
 ### 3. 用戶準備工作 (需由您手動完成)
 
-1. **設定 Tailscale**：前往 Tailscale Admin Console，生成 OAuth Client，權限為 `Devices: Read/Write`，並分配 `tag:ci`。
+1. **設定 Tailscale ACL**：前往 Tailscale Admin Console 的 Access Control 頁面，在策略中定義 `tag:ci` 的擁有者（通常是管理員群組），例如：
+   ```json
+   "tagOwners": {
+       "tag:ci": ["autogroup:admin"],
+   }
+   ```
+2. **生成 OAuth Client**：前往 Tailscale Settings -> OAuth，點擊生成新的 OAuth Client。在 Scope 權限中務必勾選：
+   - **Devices**: `Write` (或 `Read/Write`)
+   - **Auth keys**: `Write` (❗️必須勾選此 Write 權限，否則 GitHub Actions 無法為臨時機器生成註冊金鑰)
+   並且在 **Allowed tags** 中勾選您定義的 `tag:ci`。
+
 2. **設定 GitHub Secrets**：
    * `TS_OAUTH_CLIENT_ID`：Tailscale Client ID。
    * `TS_OAUTH_SECRET`：Tailscale Client Secret。
