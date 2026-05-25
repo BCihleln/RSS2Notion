@@ -104,7 +104,7 @@ def fetch_and_parse_feed(url: str, timeout: int = 15) -> feedparser.FeedParserDi
         response.raise_for_status()
         return feedparser.parse(response.content)
     except requests.exceptions.SSLError as ssl_err:
-        log.warning(f"         [Stage 2] SSL 驗證失敗 : {str(ssl_err)}")
+        log.info(f"         [Stage 2] SSL 驗證失敗 : {str(ssl_err)}")
         pass # Proceed to Stage 3
     except requests.exceptions.RequestException as e:
         # 其他 HTTP 錯誤則直接拋出，不再嘗試關閉 SSL
