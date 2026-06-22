@@ -70,51 +70,65 @@ def fetch_and_parse_feed(url: str, timeout: int = 15) -> feedparser.FeedParserDi
     Raises Exceptions for HTTP 301, 410, or if all fallbacks fail.
     """
     url = sign_rsshub_url(url)
-    log.debug(f"   Fetch [Stage 1] 使用 feedparser 預設方式獲取: {url}")
-    d = feedparser.parse(url)
-    
-    status = getattr(d, 'status', None)
-    
-    # 處理特殊需要中斷的狀態碼
-    if status == 301:
-        new_url = getattr(d, 'href', '未知')
-        raise Exception(f"HTTP 301 永久重定向: 該訂閱源已轉移，請更新 URL。新 URL: {new_url}")
-    elif status == 410:
-        raise Exception("HTTP 410 已刪除: 該訂閱源已永久停止服務。")
+    log.debug(f"[Fetch Stage 1] 使用 feedparser 預設方式獲取: {url}")
+    import socket
+    old_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(timeout)
 
-    # 判斷是否發生網路錯誤 (觸發進入下一階段)
     is_network_error = False
-    if status in (403, 404, 429, 500, 502, 503, 521, 400):
+    d = feedparser.FeedParserDict()
+    try:
+        d = feedparser.parse(url)
+    except Exception as e:
+        log.debug(f"[Fetch Stage 1] feedparser.parse 拋出異常: {e}")
         is_network_error = True
-    elif d.bozo == 1:
-        # Check if the exception is network-related (e.g. URLError, ConnectionError)
-        if isinstance(d.bozo_exception, (urllib.error.URLError, ConnectionError, TimeoutError)):
+    finally:
+        socket.setdefaulttimeout(old_timeout)
+    
+    if not is_network_error:
+        status = d.get('status', None)
+        
+        # 處理特殊需要中斷的狀態碼
+        if status == 301:
+            new_url = d.get('href', '未知')
+            raise Exception(f"HTTP 301 永久重定向: 該訂閱源已轉移，請更新 URL。新 URL: {new_url}")
+        elif status == 410:
+            raise Exception("HTTP 410 已刪除: 該訂閱源已永久停止服務。")
+
+        # 判斷是否發生網路錯誤 (觸發進入下一階段)
+        if status in (403, 404, 429, 500, 502, 503, 521, 400):
             is_network_error = True
-            
+        elif d.get('bozo', 0) == 1:
+            # Check if the exception is network-related (e.g. URLError, ConnectionError)
+            if isinstance(d.bozo_exception, (urllib.error.URLError, ConnectionError, TimeoutError)):
+                is_network_error = True
+                
     # 如果無網路錯誤，且成功解析出 entries 或原本就無錯誤，則視為成功
     if not is_network_error and (d.entries or not d.bozo):
         return d
-        
-    log.debug(f"         [Stage 1] 失敗 (Status: {status}{", Bozo: "+str(d.bozo_exception) if d.bozo else ''})")
+
+    status_str = d.get('status', None)
+    bozo_str = f", Bozo: {d.bozo_exception}" if d.get('bozo', 0) else ""
+    log.debug(f"[Fetch Stage 1] 失敗 (Status: {status_str}{bozo_str})")
 
     # Stage 2: Requests + UserAgent + verify=True
-    log.debug(f"         [Stage 2] 嘗試使用 requests + User-Agent (verify=True)")
+    log.debug(f"[Fetch Stage 2] 嘗試使用 requests + User-Agent (verify=True)")
     try:
         response = requests.get(url, headers=DEFAULT_HEADERS, timeout=timeout, verify=True)
         response.raise_for_status()
         return feedparser.parse(response.content)
     except requests.exceptions.SSLError as ssl_err:
-        log.info(f"         [Stage 2] SSL 驗證失敗 : {str(ssl_err)}")
+        log.debug(f"[Fetch Stage 2] SSL 驗證失敗 : {str(ssl_err)}")
         pass # Proceed to Stage 3
     except requests.exceptions.RequestException as e:
         # 其他 HTTP 錯誤則直接拋出，不再嘗試關閉 SSL
-        raise Exception(f"         [Stage 2] 獲取失敗 : {str(e)}")
+        raise Exception(f"[Fetch Stage 2] 獲取失敗 : {str(e)}")
 
     # Stage 3: Requests + UserAgent + verify=False
-    log.debug(f"   Fetch [Stage 3] 嘗試使用 requests + User-Agent (verify=False)")
+    log.debug(f"[Fetch Stage 3] 嘗試使用 requests + User-Agent (verify=False)")
     try:
         response = requests.get(url, headers=DEFAULT_HEADERS, timeout=timeout, verify=False)
         response.raise_for_status()
         return feedparser.parse(response.content)
     except requests.exceptions.RequestException as e:
-        raise Exception(f"         [Stage 3] 獲取失敗 : {str(e)}")
+        raise Exception(f"[Fetch Stage 3] 獲取失敗 : {str(e)}")
