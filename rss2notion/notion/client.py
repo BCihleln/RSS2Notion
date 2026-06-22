@@ -158,6 +158,79 @@ class NotionClient:
         """删除单个块（移入回收站）"""
         self._request("DELETE", f"/blocks/{block_id}")
 
+    def update_block_text(self, block_id: str, new_text: str, block_type: str = "paragraph") -> None:
+        """
+        更新 block 的文本內容。
+        Notion 單個 text 限制 2000 字元，超長會被拆分成多個 rich_text items。
+        """
+        rich_text = []
+        for i in range(0, len(new_text), 2000):
+            rich_text.append({
+                "type": "text",
+                "text": {"content": new_text[i:i+2000]}
+            })
+
+        body = {
+            block_type: {
+                "rich_text": rich_text
+            }
+        }
+        self._request("PATCH", f"/blocks/{block_id}", json=body)
+
+    def append_aggregated_urls_block(self, page_id: str, new_text: str) -> str:
+        """
+        附加一個 Aggregated 模式用來儲存 URLs 的 Callout Block (Emoji 📦)。
+        包含 Toggle -> Paragraph 的嵌套結構。
+        回傳新建 block 的 ID。
+        """
+        rich_text = []
+        for i in range(0, len(new_text), 2000):
+            rich_text.append({
+                "type": "text",
+                "text": {"content": new_text[i:i+2000]}
+            })
+
+        block = {
+            "object": "block",
+            "type": "callout",
+            "callout": {
+                "rich_text": [],
+                "icon": {
+                    "type": "emoji",
+                    "emoji": "📦"
+                },
+                "children": [
+                    {
+                        "object": "block",
+                        "type": "toggle",
+                        "toggle": {
+                            "rich_text": [
+                                {
+                                    "type": "text",
+                                    "text": {"content": "Aggregate Mode de-dup Info"},
+                                    "annotations": {"bold": True}
+                                }
+                            ],
+                            "children": [
+                                {
+                                    "object": "block",
+                                    "type": "paragraph",
+                                    "paragraph": {
+                                        "rich_text": rich_text
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+        res = self._request("PATCH", f"/blocks/{page_id}/children", json={"children": [block]})
+        results = res.get("results", [])
+        if results:
+            return results[0].get("id", "")
+        return ""
+
     def append_error_block(self, page_id: str, error_msg: str) -> None:
         """追加带时间戳的错误 Callout 块到页面。
 

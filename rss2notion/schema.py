@@ -14,6 +14,7 @@ class SubscriptionFields:
     ARTICLES =          "Articles"          # Read only
     CLEANUP_DAYS =      "Cleanup Days"      # Read only
     FETCH_AMOUNT =      "Fetch Amount"      # Read only
+    AGGREGATED =        "Aggregated"        # Read only, Checkbox
 
 
 class EntryFields:

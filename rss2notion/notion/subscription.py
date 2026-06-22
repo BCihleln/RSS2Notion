@@ -45,8 +45,32 @@ def get_avaliable_subscriptions(
         sub = _parse_subscription(page)
         if isinstance(sub, Subscription):
             page_blocks = client.get_block_children(page["id"])
-            sub.accumulated_errors = [b for b in page_blocks if (b.get("type") == "callout")] # 篩選出 callout 塊作爲已累積的錯誤快
-            sub.existing_articles = client.query_pages_by_source(entries_datasource_id, page["id"])
+            
+            sub.accumulated_errors = []  # 篩選出 callout 塊作爲已累積的錯誤快
+            for b in page_blocks:
+                if b.get("type") == "callout":
+                    icon_emoji = b.get("callout", {}).get("icon", {}).get("emoji", "")
+                    if icon_emoji in ("🔗", "📦"):
+                        sub.aggregated_urls_block_id = b["id"]
+                        rich_text = b["callout"].get("rich_text", [])
+                        text_content = "".join(rt.get("plain_text", "") for rt in rich_text)
+                        
+                        # 兼容嵌套的 Callout -> Toggle -> Paragraph 結構
+                        if not text_content and b.get("has_children"):
+                            callout_children = client.get_block_children(b["id"])
+                            if callout_children and callout_children[0].get("type") == "toggle":
+                                toggle_children = client.get_block_children(callout_children[0]["id"])
+                                if toggle_children and toggle_children[0].get("type") == "paragraph":
+                                    sub.aggregated_urls_paragraph_id = toggle_children[0]["id"]
+                                    nested_rich_text = toggle_children[0]["paragraph"].get("rich_text", [])
+                                    text_content = "".join(rt.get("plain_text", "") for rt in nested_rich_text)
+
+                        if text_content:
+                            sub.existing_articles.extend(text_content.split("\n"))
+                    else:
+                        sub.accumulated_errors.append(b)
+
+            sub.existing_articles.extend(client.query_pages_by_source(entries_datasource_id, page["id"]))
             subscriptions.append(sub)
             cleanup_str = f"，Cleanup Days 覆寫: {sub.fetch_days}" if sub.fetch_days is not None else ""
             log.debug(f"   訂閲源獲取 ✓ : {sub.name} 已有 {len(sub.existing_articles)} 條文章记录{cleanup_str}")
@@ -151,6 +175,8 @@ def _parse_subscription(page: dict) -> Subscription | None:
         # Fetch Amount（number 類型）；空值保留 None，表示沿用全局值
         fetch_amount: int | None = props.get(SubscriptionFields.FETCH_AMOUNT, {}).get("number", None)
 
+        is_aggregated: bool = props.get(SubscriptionFields.AGGREGATED, {}).get("checkbox", False)
+
         return Subscription(
             page_id=page["id"],
             name=name,
@@ -164,6 +190,7 @@ def _parse_subscription(page: dict) -> Subscription | None:
             filterout_keywords=filterout_keywords,
             fetch_days=cleanup_days,
             fetch_amount=fetch_amount,
+            is_aggregated=is_aggregated,
         )
     except Exception as e:
         log.error(f"解析订阅页面失败 {page.get('id', '?')}: {e}")

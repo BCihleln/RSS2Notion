@@ -87,6 +87,7 @@ tests/
 | `Articles` | `SubscriptionFields.ARTICLES` | relation | 關聯文章數（Notion 自動） |
 | `Cleanup Days` | `SubscriptionFields.CLEANUP_DAYS` | number | 訂閱源級清理天數覆寫 |
 | `Fetch Amount` | `SubscriptionFields.FETCH_AMOUNT` | number | 每次最多拉取篇數 |
+| `Aggregated` | `SubscriptionFields.AGGREGATED` | checkbox | 啟用彙整模式（將多篇文章彙整至單一頁面） |
 
 ### 文章數據庫（`NOTION_ARTICLES_DATABASE_ID`）
 

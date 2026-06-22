@@ -44,6 +44,7 @@ Add, edit, and disable RSS sources directly in Notion — no config files needed
 - **Keyword filtering** — Per-subscription blocklist (`Filterout`) to skip articles whose title or URL matches specified keywords
 - **Error tracking & Notification** — Failed syncs append timestamped error callout blocks to the subscription page and default to mentioning the workspace owner (or a specific user via `NOTION_USER_ID`); status is only upgraded to `Error` after a configurable number of consecutive failures
 - **Status control** — Configure which subscription statuses to fetch (e.g., only `Active`) or disable automatic status updates during sync failures via environment variables
+- **Aggregated mode** — For high-frequency feeds, consolidate multiple articles into a single Notion page to prevent database clutter
 
 **Feed Content Rendering**  
 Converts the HTML content already included in the RSS feed (`content` or `summary` fields) into rich Notion blocks, preserving headings, lists, code blocks, tables, quotes, and inline formatting:
@@ -78,13 +79,15 @@ flowchart TD
     subgraph Phase2 [Phase 2 — Serial Write to Notion]
         F --> G[Time window filter]
         G --> H[Fetch Amount limit]
-        H --> I[URL deduplication]
+        H --> I[URL / Hash deduplication]
         I --> J[Filterout keyword check]
         J --> K{New articles?}
         K -- No --> L[Status → Active\nClear historical error blocks]
-        K -- Yes --> M[HTML → Notion Blocks\nhtml2notion_block.py]
-        M --> N[create_page\nappend_blocks\nlock_page]
-        N --> O{Write result}
+        K -- Yes --> M{Aggregated\nMode?}
+        M -- No --> N1[HTML → Notion Blocks\ncreate_page & lock_page]
+        M -- Yes --> N2[Combine articles → 1 Page\nUpdate Hash Callout]
+        N1 --> O{Write result}
+        N2 --> O
         O -- Success --> L
         O -- Failed --> P[Append error summary\nfetch_failed]
     end
@@ -242,8 +245,9 @@ The startup sanity check validates this schema before fetching RSS feeds. If you
 | `Updates` | last_edited_time | Read | Auto-updated by Notion on last edit |
 | `Filterout` | multi_select | Read | Keywords — articles whose title or URL contains any keyword are skipped |
 | `Articles` | relation | Read | Linked articles count (managed by Notion relation) |
-| `Cleanup Days` | number | Read | Per-feed retention window override; empty = use global `CLEANUP_DAYS` |
+| `Cleanup Days` | number | Read | Per-feed retention period override; empty = use global `CLEANUP_DAYS` |
 | `Fetch Amount` | number | Read | Max articles to import per run for this feed; empty = no limit |
+| `Aggregated` | checkbox | Read | Enable aggregated mode: consolidates multiple articles into a single page |
 
 ### Reading Database
 

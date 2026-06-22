@@ -46,3 +46,6 @@ class Subscription:
     accumulated_errors: list[dict]
     fetch_amount: int | None = None
     fetch_days: int | None = None
+    is_aggregated: bool = False
+    aggregated_urls_block_id: str | None = None
+    aggregated_urls_paragraph_id: str | None = None

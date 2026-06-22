@@ -44,6 +44,7 @@
 - **关键词过滤** — 每个订阅可设置屏蔽关键词列表（`Filterout`），标题或链接命中则跳过
 - **错误追踪与通知** — 同步失败时自动将带时间戳的错误 Callout 块追加到订阅页面，并默认 @提及工作区所有者（也可通过 `NOTION_USER_ID` 指定特定用户）；连续失败次数达到阈值后才升级为 `Error` 状态
 - **状态更新控制** — 支持通过环境变量过滤拉取特定状态的订阅源（如仅拉取 `Active`），并可关闭同步失败时的自动状态更新
+- **汇总模式** — 对于高频更新的信息流，可将多篇文章汇总到单一 Notion 页面中，保持阅读数据库整洁，避免刷屏
 
 **Feed 内容渲染**  
 将 RSS Feed 中已包含的 HTML 内容（`content` 或 `summary` 字段）转换为 Notion 块，保留标题、列表、代码块、表格、引用及行内格式：
@@ -78,13 +79,15 @@ flowchart TD
     subgraph Phase2 [阶段二：串行写入 Notion]
         F --> G[时间窗口筛选]
         G --> H[Fetch Amount 数量限制]
-        H --> I[URL 去重]
+        H --> I[URL / Hash 去重]
         I --> J[Filterout 关键词过滤]
         J --> K{有新文章?}
         K -- 否 --> L[Status → Active\n清除历史错误块]
-        K -- 是 --> M[HTML → Notion Blocks\nhtml2notion_block.py]
-        M --> N[create_page\nappend_blocks\nlock_page]
-        N --> O{写入结果}
+        K -- 是 --> M{是否开启\n汇总模式?}
+        M -- 否 --> N1[HTML → Notion Blocks\ncreate_page 单篇写入]
+        M -- 是 --> N2[合并多篇 → 单一页面\n更新 Hash Callout 块]
+        N1 --> O{写入结果}
+        N2 --> O
         O -- 成功 --> L
         O -- 失败 --> P[追加错误摘要\nfetch_failed]
     end
@@ -244,6 +247,7 @@ RSS2Notion 启动时会先检查这两个 ID 是否可读、必要字段是否�
 | `Articles` | relation | 读 | 已关联的文章数量（Notion 自动统计） |
 | `Cleanup Days` | number | 读 | 订阅源级保留天数；为空则沿用全局 `CLEANUP_DAYS` |
 | `Fetch Amount` | number | 读 | 每次最多导入该订阅源的文章篇数；为空则不限 |
+| `Aggregated` | checkbox | 读 | 启用汇总模式：将多篇文章整合至单一页面，避免高频更新刷屏 |
 
 ### 阅读数据库属性
 
