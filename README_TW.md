@@ -42,7 +42,8 @@
 - **智慧去重** — 基於時間戳篩選 + URL 批次查詢雙重去重，高效避免重複寫入
 - **訂閱源級別覆寫** — 每個訂閱可獨立設定清理週期（`Cleanup Days`）和每次抓取數量（`Fetch Amount`）
 - **關鍵詞過濾** — 每個訂閱可設定封鎖關鍵詞清單（`Filterout`），標題或連結命中則略過
-- **錯誤追蹤** — 同步失敗時自動將帶有時間戳的錯誤 Callout 區塊附加到訂閱頁面；連續失敗次數達到閾值後才升級為 `Error` 狀態
+- **錯誤追蹤與通知** — 同步失敗時自動將帶有時間戳的錯誤 Callout 區塊附加到訂閱頁面，並預設 @提及工作區擁有者（也可透過 `NOTION_USER_ID` 指定特定使用者）；連續失敗次數達到閾值後才升級為 `Error` 狀態
+- **狀態更新控制** — 支援透過環境變數過濾拉取特定狀態的訂閱源（如僅拉取 `Active`），並可關閉同步失敗時的自動狀態更新
 
 **Feed 內容渲染**  
 將 RSS Feed 中已包含的 HTML 內容（`content` 或 `summary` 欄位）轉換為 Notion 塊，保留標題、清單、程式碼區塊、表格、引用及行內格式
@@ -165,6 +166,9 @@ RSS2Notion 啟動時會先檢查這兩個 ID 是否可讀、必要欄位是否�
 |--------------|--------|------|
 | `TIMEZONE` | `Asia/Shanghai` | 時區，使用 [IANA 格式](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) |
 | `CLEANUP_DAYS` | `30` | 全域保留天數，同時控制首次執行的匯入範圍。設為 `-1` 則停用自動清理並匯入全部歷史 |
+| `SUBSCRIPTION_FETCH_STATUS` | `Active` | 指定要拉取的確切訂閱狀態，例如：`Active` 或 `Error` |
+| `SUBSCRIPTION_UPDATE_STATUS`| `true` | 是否允許同步流程中自動更新訂閱源狀態（例如錯誤過多時標記為 Error） |
+| `NOTION_USER_ID` | — | 指定同步錯誤時要 @通知的 Notion 使用者 ID |
 
 ### 步驟 5：啟用 GitHub Actions 並手動觸發
 
@@ -194,7 +198,9 @@ RSS2Notion 啟動時會先檢查這兩個 ID 是否可讀、必要欄位是否�
 | `NOTION_FEEDS_DATABASE_ID` | ✅ | — | 訂閱 data source ID |
 | `TIMEZONE` | — | `Asia/Shanghai` | IANA 時區名稱 |
 | `CLEANUP_DAYS` | — | `30` | 全域保留天數；`-1` 則匯入全部歷史資料且停用自動清理 |
-| `NOTION_USER_ID` | — | — | 同步錯誤時需 Mention 的 Notion 使用者 ID |
+| `SUBSCRIPTION_FETCH_STATUS` | — | `Active` | 指定要拉取的確切訂閱狀態，例如：`Active` 或 `Error` |
+| `SUBSCRIPTION_UPDATE_STATUS`| — | `true` | 是否允許自動更新訂閱狀態 |
+| `NOTION_USER_ID` | — | — | 同步錯誤時需 Mention 的 Notion 使用者 ID（預設為工作區擁有者） |
 
 ### 進階設定（程式碼級）
 
@@ -207,6 +213,18 @@ RSS2Notion 啟動時會先檢查這兩個 ID 是否可讀、必要欄位是否�
 | `retry_times` | `3` | 每次 Notion API 請求的重試次數 |
 | `retry_delay` | `2.0` | 重試間隔秒數 |
 | `mark_err_threshold` | `10` | 訂閱頁面中累積錯誤 Callout 區塊達到該數量後，將狀態升級為 `Error` |
+
+#### 進階設定實用案例
+
+**案例 1：本地開發測試（避免影響線上資料庫）**
+當你在本地端測試腳本時，可能不希望因為本地網路問題導致線上的訂閱源被意外標記為 `Error`。此時可將環境變數 `SUBSCRIPTION_UPDATE_STATUS` 設為 `false`，腳本仍會將錯誤寫入訂閱頁面，但不會改變 `Status` 屬性。此外，如果只想單獨除錯已被標記為 `Error` 的問題訂閱源，可在本地端設定 `SUBSCRIPTION_FETCH_STATUS=Error`。
+
+**案例 2：自訂錯誤通知對象**
+預設情況下，同步錯誤的 callout 區塊會 @提及 Notion 工作區擁有者。若要通知特定使用者（例如為團隊架設時，希望指定通知你的個人帳號）：
+1. 在 Notion 任意頁面輸入 `@` 並選擇目標使用者。
+2. 對該 mention 連結按右鍵並複製連結網址。
+3. 從 URL 提取 32 字元的 ID（例如：`https://www.notion.so/username-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`）。
+4. 將該 ID 設為環境變數 `NOTION_USER_ID`。
 
 ---
 

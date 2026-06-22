@@ -42,7 +42,8 @@ Add, edit, and disable RSS sources directly in Notion — no config files needed
 - **Smart deduplication** — Timestamp-based filtering + batch URL lookup to efficiently avoid duplicate entries
 - **Per-subscription overrides** — Each feed can independently set its own cleanup window (`Cleanup Days`) and article fetch limit (`Fetch Amount`)
 - **Keyword filtering** — Per-subscription blocklist (`Filterout`) to skip articles whose title or URL matches specified keywords
-- **Error tracking** — Failed syncs append timestamped error callout blocks to the subscription page; status is only upgraded to `Error` after a configurable number of consecutive failures
+- **Error tracking & Notification** — Failed syncs append timestamped error callout blocks to the subscription page and default to mentioning the workspace owner (or a specific user via `NOTION_USER_ID`); status is only upgraded to `Error` after a configurable number of consecutive failures
+- **Status control** — Configure which subscription statuses to fetch (e.g., only `Active`) or disable automatic status updates during sync failures via environment variables
 
 **Feed Content Rendering**  
 Converts the HTML content already included in the RSS feed (`content` or `summary` fields) into rich Notion blocks, preserving headings, lists, code blocks, tables, quotes, and inline formatting:
@@ -165,6 +166,9 @@ At startup, RSS2Notion validates that both IDs are readable, required properties
 |--------------|---------|-------------|
 | `TIMEZONE` | `Asia/Shanghai` | Timezone in [IANA format](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) |
 | `CLEANUP_DAYS` | `30` | Global retention window (days). Also controls the first-run import window. Set to `-1` to disable auto-cleanup and import all history |
+| `SUBSCRIPTION_FETCH_STATUS` | `Active` | The exact subscription status to fetch (e.g., `Active` or `Error`) |
+| `SUBSCRIPTION_UPDATE_STATUS`| `true` | Whether to allow the sync process to automatically update subscription statuses (e.g., marking as `Error` after consecutive failures) |
+| `NOTION_USER_ID` | — | Notion User ID to explicitly mention on sync errors |
 
 ### Step 5: Enable GitHub Actions and Run Manually
 
@@ -194,7 +198,9 @@ After that, the sync runs automatically every 8 hours.
 | `NOTION_FEEDS_DATABASE_ID` | ✅ | — | Subscription data source ID |
 | `TIMEZONE` | — | `Asia/Shanghai` | IANA timezone name |
 | `CLEANUP_DAYS` | — | `30` | Global retention window. `-1` imports all history and disables cleanup |
-| `NOTION_USER_ID` | — | — | Notion User ID to mention on sync errors |
+| `SUBSCRIPTION_FETCH_STATUS` | — | `Active` | The exact subscription status to fetch (e.g., `Active` or `Error`) |
+| `SUBSCRIPTION_UPDATE_STATUS`| — | `true` | Whether to allow automatic subscription status updates |
+| `NOTION_USER_ID` | — | — | Notion User ID to mention on sync errors (defaults to workspace owner) |
 
 ### Advanced Config (code-level)
 
@@ -207,6 +213,18 @@ These are defined in `rss2notion/utils/config.py` and can be adjusted directly:
 | `retry_times` | `3` | HTTP retry attempts per Notion API request |
 | `retry_delay` | `2.0` | Seconds between retries |
 | `mark_err_threshold` | `10` | Number of consecutive error callout blocks on a subscription page before its status is set to `Error` |
+
+#### Use Cases for Advanced Configuration
+
+**Case 1: Local Development & Testing without Side-effects**
+When testing the script locally, you might not want to accidentally change the `Status` of your feeds in the production Notion database if local network errors occur. Setting `SUBSCRIPTION_UPDATE_STATUS=false` prevents the script from updating the `Status` property. Additionally, if you only want to test debugging feeds that are currently marked as `Error`, you can run the script locally with `SUBSCRIPTION_FETCH_STATUS=Error`.
+
+**Case 2: Customizing Error Notifications**
+By default, sync errors append a callout block mentioning the Notion workspace owner. To notify a specific user instead (e.g. your personal account when running the project for a team):
+1. Open any Notion page in the browser and type `@` followed by the user's name.
+2. Right-click the mention link and copy the link address.
+3. Extract the 32-character ID from the URL (e.g., `https://www.notion.so/username-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`).
+4. Set this ID as the `NOTION_USER_ID` environment variable.
 
 ---
 
