@@ -20,9 +20,11 @@ RSS2Notion 是一個將 RSS 訂閱內容同步到 Notion 數據庫的 Python 工
 
 ```bash
 # 安裝依賴（需 Python >= 3.14 和 uv）
+# 註：本地開發使用 `uv sync`，生產環境（如 GitHub Actions）建議使用 `uv sync --no-dev`
 uv sync
 
 # 運行（需設置環境變量）
+# 註：生產環境執行建議加上 --no-dev：`uv run --no-dev python -m rss2notion`
 export NOTION_API_KEY=...
 export NOTION_ARTICLES_DATABASE_ID=...
 export NOTION_FEEDS_DATABASE_ID=...
@@ -68,6 +70,8 @@ tests/
 | `NOTION_FEEDS_DATABASE_ID` | 是 | — | 訂閱數據庫 ID |
 | `TIMEZONE` | 否 | `Asia/Shanghai` | IANA 時區名 |
 | `CLEANUP_DAYS` | 否 | `30` | 清理天數；-1 不清理且導入全部歷史 |
+| `SUBSCRIPTION_FETCH_STATUS` | 否 | `Active` | 要拉取的訂閱狀態過濾，可逗號分隔，例如：`Active,Error` |
+| `SUBSCRIPTION_STATUS_UPDATE` | 否 | `true` | 是否允許同步流程中自動更新訂閱源的 Status（例如錯誤過多時標記為 Error） |
 
 ## Notion 數據庫屬性
 
@@ -170,21 +174,10 @@ tests/
 - `chore`：其他不影響源代碼的雜務（如依賴包更新、專案配置等）
 
 ### Feature Commit 更新流程
-當在 `dev` 分支完成功能開發並通過測試後，應採用以下工作流將更新合併到主分支：
+推薦採用標準的 Feature Branch 開發模式：
 
-1. **暫存變更**：
-   在 `dev` 分支上，將不欲立即 Commit 的本地修改（如 `AGENTS.md` 等非本次功能直接關聯的檔案）暫存或保持 Unstaged。
-2. **提交至 `main`**：
-   將已驗證的功能程式碼變更提交（Commit）至本地的 `main` 分支，Commit 內容需明確列出修改的檔案與功能的關聯。
-3. **推送主分支**：
-   將本地的 `main` 推送到遠端倉庫 `origin/main`：
-   `git push origin main`
-4. **Rebase `dev` 分支**：
-   切換回 `dev` 分支，將其 Rebase 到 `main` 分支上，以保持分支歷史的線性與最新狀態：
-   `git checkout dev`
-   `git rebase main`
-5. **強制推送 `dev` 分支**：
-   將 Rebase 後的 `dev` 分支強制推送至遠端 `origin/dev`：
-   `git push origin dev --force`
+1. 從 `main` 分支建立新的 feature 分支進行開發。
+2. 開發完成後，將分支推送至遠端並建立 Pull Request（或直接 Merge 回 `main`）。
+3. 保持 Commit 歷史清晰，遵循語意化 Commit 規範。
 
 

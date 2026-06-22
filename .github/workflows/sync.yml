@@ -32,7 +32,7 @@ jobs:
         run: uv python install
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-dev
 
       - name: Run RSS sync
         env:
@@ -43,4 +43,4 @@ jobs:
           CLEANUP_DAYS: ${{ vars.CLEANUP_DAYS || '30' }}
           RSSHUB_BASE_URL: ${{ vars.RSSHUB_BASE_URL }}
           RSSHUB_ACCESS_KEY: ${{ secrets.RSSHUB_ACCESS_KEY }}
-        run: uv run python -m rss2notion
+        run: uv run --no-dev python -m rss2notion

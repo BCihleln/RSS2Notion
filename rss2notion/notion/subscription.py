@@ -7,6 +7,7 @@ import logging
 from ..models import Subscription
 from .client import NotionClient
 from ..schema import SubscriptionFields, StatusValues
+from ..utils.config import Config
 
 log = logging.getLogger(__name__)
 
@@ -16,18 +17,24 @@ def get_avaliable_subscriptions(
         entries_datasource_id: str,
         ) -> list[Subscription]:
     """从订阅数据库读取所有 Status 為 Active/Empty 的 Page """
+    config = Config.from_env()
+    
+    or_conditions = [
+        {
+            "property": SubscriptionFields.STATUS,
+            "select": {"is_empty": True},
+        }
+    ]
+    
+    if config.subscription_fetch_status:
+        or_conditions.append({
+            "property": SubscriptionFields.STATUS,
+            "select": {"equals": config.subscription_fetch_status},
+        })
+
     body: dict = {
         "filter": {
-            "or":[
-                {
-                    "property": SubscriptionFields.STATUS,
-                    "select": {"is_empty": True},
-                },
-                {
-                    "property": SubscriptionFields.STATUS,
-                    "select": {"equals": StatusValues.ACTIVE},
-                }
-            ]
+            "or": or_conditions
         },
         "page_size": 100,
     }
@@ -64,19 +71,23 @@ def update_subscription_status(
         status:       新状态值（StatusValues 常量）；传入 None 或空字符串则清空 select
         error_msg:    若不为 None，将错误信息以带时间戳的 Callout 块追加到订阅页面
     """
-    # status 为 None / "" 时清空 select（用于"暂时出错但未达阈值"场景）
-    if status:
-        status_value: dict | None = {"name": status}
-    else:
-        status_value = None
+    config = Config.from_env()
+    
+    # 如果啓用狀態更新，才向 Notion 送出 PATCH 修改 properties
+    if config.subscription_update_status:
+        # status 为 None / "" 时清空 select（用于"暂时出错但未达阈值"场景）
+        if status:
+            status_value: dict | None = {"name": status}
+        else:
+            status_value = None
 
-    body: dict = {
-        "properties": {
-            SubscriptionFields.STATUS: {"select": status_value},
+        body: dict = {
+            "properties": {
+                SubscriptionFields.STATUS: {"select": status_value},
+            }
         }
-    }
 
-    client._request("PATCH", f"/pages/{subscription.page_id}", json=body)
+        client._request("PATCH", f"/pages/{subscription.page_id}", json=body)
 
     # 若有错误消息，追加带时间戳的错误块到订阅页面
     if error_msg:

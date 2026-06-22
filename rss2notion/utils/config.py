@@ -3,6 +3,7 @@
 """
 
 import os
+from ..schema import StatusValues
 from dataclasses import dataclass
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -19,6 +20,8 @@ class Config:
     retry_times: int = 3
     retry_delay: float = 2.0
     mark_err_threshold: int = 10       # 累积错误块数量达到该阈值时，才将订阅状态升级为 Error
+    subscription_fetch_status: str = StatusValues.ACTIVE
+    subscription_update_status: bool = True
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -52,10 +55,18 @@ class Config:
         except ValueError:
             raise ValueError(f"CLEANUP_DAYS 必须为整数，当前值: {cleanup_days_str}")
 
+        subscription_fetch_status = os.environ.get("SUBSCRIPTION_FETCH_STATUS", StatusValues.ACTIVE)
+        
+        # 預設為 True，允許更新狀態
+        update_status_str = os.environ.get("SUBSCRIPTION_UPDATE_STATUS", "true").lower()
+        subscription_update_status = update_status_str == "true"
+
         return cls(
             notion_api_key=api_key,
             entries_datasource_id=datasource_id,
             feeds_datasource_id=sub_datasource_id,
             timezone=tz,
             cleanup_days=cleanup_days,
+            subscription_fetch_status=subscription_fetch_status,
+            subscription_update_status=subscription_update_status,
         )
