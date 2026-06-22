@@ -38,6 +38,7 @@ if __name__ == "__main__":
         api_key=config.notion_api_key,
         retry_times=config.retry_times,
         retry_delay=config.retry_delay,
+        notion_user_id=config.notion_user_id,
     )
 
     try:

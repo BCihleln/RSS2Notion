@@ -20,7 +20,7 @@ _NOTION_API_VERSION = "2025-09-03"
 class NotionClient:
     BASE = "https://api.notion.com/v1"
 
-    def __init__(self, api_key: str, retry_times: int = 3, retry_delay: float = 2.0):
+    def __init__(self, api_key: str, retry_times: int = 3, retry_delay: float = 2.0, notion_user_id: str | None = None):
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -28,6 +28,7 @@ class NotionClient:
         }
         self.retry_times = retry_times
         self.retry_delay = retry_delay
+        self.notion_user_id = notion_user_id
 
     def _request(self, method: str, path: str, **kwargs) -> dict:
         url = f"{self.BASE}{path}"
@@ -165,8 +166,20 @@ class NotionClient:
             error_msg: 错误信息字符串
         """
         try:
+            if not getattr(self, '_notion_user_id_resolved', False):
+                if not self.notion_user_id:
+                    try:
+                        users = self._paginate("GET", "/users")
+                        for u in users:
+                            if u.get("type") == "person":
+                                self.notion_user_id = u["id"]
+                                break
+                    except Exception as e:
+                        log.warning(f"   ✗ 无法获取 Notion 使用者 ID: {e}")
+                self._notion_user_id_resolved = True
+
             ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-            block = _build_error_block(error_msg, timestamp=ts)
+            block = _build_error_block(error_msg, timestamp=ts, user_id=self.notion_user_id)
             self.append_blocks(page_id, [block])
             log.info(f"   ✓ 错误块已记录到页面 {page_id}")
         except Exception as e:
@@ -177,12 +190,13 @@ class NotionClient:
 # 内部辅助函数
 # ─────────────────────────────────────────────
 
-def _build_error_block(error_msg: str, timestamp: str | None = None) -> dict:
+def _build_error_block(error_msg: str, timestamp: str | None = None, user_id: str | None = None) -> dict:
     """生成带时间戳的 Notion Callout block（⚠️ 红色背景）
 
     Args:
         error_msg: 错误消息字符串
         timestamp: 可读时间戳字符串，如 "2025-01-01 12:00 UTC"
+        user_id: 需 mention 的使用者 ID (可选)
 
     Returns:
         符合 Notion Block 规范的字典
@@ -198,19 +212,33 @@ def _build_error_block(error_msg: str, timestamp: str | None = None) -> dict:
     if len(full_msg) > max_length:
         full_msg = full_msg[:max_length - 5] + "...[截断]"
 
+    if user_id:
+        full_msg += " "
+
+    rich_text = [
+        {
+            "type": "text",
+            "text": {
+                "content": full_msg,
+                "link": None,
+            },
+        }
+    ]
+
+    if user_id:
+        rich_text.append({
+            "type": "mention",
+            "mention": {
+                "type": "user",
+                "user": {"id": user_id}
+            }
+        })
+
     return {
         "object": "block",
         "type": "callout",
         "callout": {
-            "rich_text": [
-                {
-                    "type": "text",
-                    "text": {
-                        "content": full_msg,
-                        "link": None,
-                    },
-                }
-            ],
+            "rich_text": rich_text,
             "icon": {
                 "type": "emoji",
                 "emoji": _ERROR_BLOCK_EMOJI,

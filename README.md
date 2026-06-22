@@ -194,6 +194,7 @@ After that, the sync runs automatically every 8 hours.
 | `NOTION_FEEDS_DATABASE_ID` | ✅ | — | Subscription data source ID |
 | `TIMEZONE` | — | `Asia/Shanghai` | IANA timezone name |
 | `CLEANUP_DAYS` | — | `30` | Global retention window. `-1` imports all history and disables cleanup |
+| `NOTION_USER_ID` | — | — | Notion User ID to mention on sync errors |
 
 ### Advanced Config (code-level)
 

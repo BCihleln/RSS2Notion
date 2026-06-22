@@ -15,6 +15,7 @@ class Config:
     feeds_datasource_id: str             # 订阅数据库 ID
     timezone: ZoneInfo                 # 时区对象
     cleanup_days: int                  # 清理天数，-1 表示不清理
+    notion_user_id: str | None = None  # Notion 使用者 ID
     max_import_count: int = 1          # 單訂閱源文章導入時，未限定時間範圍的數量上限
     notion_block_limit: int = 100      # 首批写入 block 上限
     retry_times: int = 3
@@ -60,6 +61,7 @@ class Config:
         # 預設為 True，允許更新狀態
         update_status_str = os.environ.get("SUBSCRIPTION_UPDATE_STATUS", "true").lower()
         subscription_update_status = update_status_str == "true"
+        notion_user_id = os.environ.get("NOTION_USER_ID")
 
         return cls(
             notion_api_key=api_key,
@@ -69,4 +71,5 @@ class Config:
             cleanup_days=cleanup_days,
             subscription_fetch_status=subscription_fetch_status,
             subscription_update_status=subscription_update_status,
+            notion_user_id=notion_user_id,
         )

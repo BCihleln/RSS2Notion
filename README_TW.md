@@ -194,6 +194,7 @@ RSS2Notion 啟動時會先檢查這兩個 ID 是否可讀、必要欄位是否�
 | `NOTION_FEEDS_DATABASE_ID` | ✅ | — | 訂閱 data source ID |
 | `TIMEZONE` | — | `Asia/Shanghai` | IANA 時區名稱 |
 | `CLEANUP_DAYS` | — | `30` | 全域保留天數；`-1` 則匯入全部歷史資料且停用自動清理 |
+| `NOTION_USER_ID` | — | — | 同步錯誤時需 Mention 的 Notion 使用者 ID |
 
 ### 進階設定（程式碼級）
 
