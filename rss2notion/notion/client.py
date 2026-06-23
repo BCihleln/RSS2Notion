@@ -251,8 +251,7 @@ class NotionClient:
                         log.warning(f"   ✗ 无法获取 Notion 使用者 ID: {e}")
                 self._notion_user_id_resolved = True
 
-            ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-            block = _build_error_block(error_msg, timestamp=ts, user_id=self.notion_user_id)
+            block = _build_error_block(error_msg, user_id=user_id)
             self.append_blocks(page_id, [block])
             log.info(f"   ✓ 错误块已记录到页面 {page_id}")
         except Exception as e:
@@ -263,12 +262,11 @@ class NotionClient:
 # 内部辅助函数
 # ─────────────────────────────────────────────
 
-def _build_error_block(error_msg: str, timestamp: str | None = None, user_id: str | None = None) -> dict:
+def _build_error_block(error_msg: str, user_id: str | None = None) -> dict:
     """生成带时间戳的 Notion Callout block（⚠️ 红色背景）
 
     Args:
         error_msg: 错误消息字符串
-        timestamp: 可读时间戳字符串，如 "2025-01-01 12:00 UTC"
         user_id: 需 mention 的使用者 ID (可选)
 
     Returns:
@@ -276,10 +274,8 @@ def _build_error_block(error_msg: str, timestamp: str | None = None, user_id: st
     """
     # 截断超长消息（Notion paragraph content 限制 2000 字符）
     # 拼接时间戳前缀
-    if timestamp:
-        full_msg = f"[{timestamp}] {error_msg}"
-    else:
-        full_msg = error_msg
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    full_msg = f"[{timestamp}] {error_msg}"
 
     max_length = 2000
     if len(full_msg) > max_length:
