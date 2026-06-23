@@ -231,26 +231,33 @@ class NotionClient:
             return results[0].get("id", "")
         return ""
 
-    def append_error_block(self, page_id: str, error_msg: str) -> None:
+    def _get_notion_user_id(self) -> str | None:
+        """延迟解析并缓存 Notion 用户 ID"""
+        if getattr(self, '_notion_user_id_resolved', False):
+            return self.notion_user_id
+
+        self._notion_user_id_resolved = True
+        if not self.notion_user_id:
+            try:
+                for u in self._paginate("GET", "/users"):
+                    if u.get("type") == "person":
+                        self.notion_user_id = u["id"]
+                        break
+            except Exception as e:
+                log.warning(f"   ✗ 无法获取 Notion 使用者 ID: {e}")
+
+        return self.notion_user_id
+
+    def append_error_block(self, page_id: str, error_msg: str, mention_user: bool = False) -> None:
         """追加带时间戳的错误 Callout 块到页面。
 
         Args:
             page_id: 目标页面 ID
             error_msg: 错误信息字符串
+            mention_user: 是否提及使用者
         """
         try:
-            if not getattr(self, '_notion_user_id_resolved', False):
-                if not self.notion_user_id:
-                    try:
-                        users = self._paginate("GET", "/users")
-                        for u in users:
-                            if u.get("type") == "person":
-                                self.notion_user_id = u["id"]
-                                break
-                    except Exception as e:
-                        log.warning(f"   ✗ 无法获取 Notion 使用者 ID: {e}")
-                self._notion_user_id_resolved = True
-
+            user_id = self._get_notion_user_id() if mention_user else None
             block = _build_error_block(error_msg, user_id=user_id)
             self.append_blocks(page_id, [block])
             log.info(f"   ✓ 错误块已记录到页面 {page_id}")

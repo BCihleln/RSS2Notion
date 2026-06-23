@@ -115,7 +115,11 @@ def update_subscription_status(
 
     # 若有错误消息，追加带时间戳的错误块到订阅页面
     if error_msg:
-        client.append_error_block(subscription.page_id, error_msg)
+        client.append_error_block(
+            subscription.page_id, 
+            error_msg, 
+            mention_user=(status == StatusValues.ERROR)
+            )
 
 
 # ─────────────────────────────────────────────
