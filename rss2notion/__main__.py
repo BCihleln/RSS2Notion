@@ -29,6 +29,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 log = logging.getLogger(__name__)
+config = Config.from_env()
 
 
 def _should_skip_entry(subscription: Subscription, entry: RSSEntry) -> str:
@@ -43,7 +44,7 @@ def _should_skip_entry(subscription: Subscription, entry: RSSEntry) -> str:
     return ""
 
 
-def _write_page_with_blocks(client: NotionClient, config: Config, entry: RSSEntry, source_page_id: str, all_blocks: list[dict]) -> dict:
+def _write_page_with_blocks(client: NotionClient, entry: RSSEntry, source_page_id: str, all_blocks: list[dict]) -> dict:
     """建立 Notion 頁面並寫入所有區塊，處理分批與鎖定，回傳 page API response"""
     first_batch = all_blocks[:config.notion_block_limit]
     rest_blocks = all_blocks[config.notion_block_limit:]
@@ -64,7 +65,7 @@ def _write_page_with_blocks(client: NotionClient, config: Config, entry: RSSEntr
     return page
 
 
-def _handle_aggregated_mode(client: NotionClient, config: Config, subscription: Subscription, entries: list[RSSEntry]) -> tuple[int, int, int, list[dict]]:
+def _handle_aggregated_mode(client: NotionClient, subscription: Subscription, entries: list[RSSEntry]) -> tuple[int, int, int, list[dict]]:
     """處理彙整模式的寫入邏輯，回傳 (written, skipped, failed, failed_entries)"""
     written = skipped = failed = 0
     failed_entries: list[dict] = []
@@ -138,7 +139,7 @@ def _handle_aggregated_mode(client: NotionClient, config: Config, subscription: 
         )
 
         try:
-            page = _write_page_with_blocks(client, config, dummy_entry, subscription.page_id, all_blocks)
+            page = _write_page_with_blocks(client, dummy_entry, subscription.page_id, all_blocks)
             written += len(new_entries)
             log.info(f"    ✓ 写入彙整頁面: {title} (包含 {len(new_entries)} 篇文章)")
             log.info(f"    ------- {page['url']}")
@@ -164,7 +165,7 @@ def _handle_aggregated_mode(client: NotionClient, config: Config, subscription: 
     return written, skipped, failed, failed_entries
 
 
-def _handle_standard_mode(client: NotionClient, config: Config, subscription: Subscription, entries: list[RSSEntry]) -> tuple[int, int, int, list[dict]]:
+def _handle_standard_mode(client: NotionClient, subscription: Subscription, entries: list[RSSEntry]) -> tuple[int, int, int, list[dict]]:
     """處理標準模式的寫入邏輯，回傳 (written, skipped, failed, failed_entries)"""
     written = skipped = failed = 0
     failed_entries: list[dict] = []
@@ -185,7 +186,7 @@ def _handle_standard_mode(client: NotionClient, config: Config, subscription: Su
                 img_count = sum(1 for b in all_blocks if b.get("type") == "image")
                 log.debug(f"    blocks: {len(all_blocks)} 个（含 {img_count} 张图片）")
 
-            page = _write_page_with_blocks(client, config, entry, subscription.page_id, all_blocks)
+            page = _write_page_with_blocks(client, entry, subscription.page_id, all_blocks)
 
             log.info(f"    ✓ 写入: {entry.title}")
             log.info(f"    ------- {page['url']}")
@@ -202,7 +203,7 @@ def _handle_standard_mode(client: NotionClient, config: Config, subscription: Su
     return written, skipped, failed, failed_entries
 
 
-def process_subscription(client: NotionClient, config: Config, subscription: Subscription, entries: list[RSSEntry]) -> tuple[int, int, int, int]:
+def process_subscription(client: NotionClient, subscription: Subscription, entries: list[RSSEntry]) -> tuple[int, int, int, int]:
     """處理單一訂閱源的所有邏輯，包含時間篩選、寫入 Notion 及清理往期文章"""
     log.info(f"── 处理订阅: {subscription.name or subscription.url}")
     before_filter = len(entries)
@@ -238,9 +239,9 @@ def process_subscription(client: NotionClient, config: Config, subscription: Sub
 
     # ── 2. 執行寫入 (區分模式) ──
     if getattr(subscription, "is_aggregated", False):
-        written, skipped, failed, failed_entries = _handle_aggregated_mode(client, config, subscription, entries)
+        written, skipped, failed, failed_entries = _handle_aggregated_mode(client, subscription, entries)
     else:
-        written, skipped, failed, failed_entries = _handle_standard_mode(client, config, subscription, entries)
+        written, skipped, failed, failed_entries = _handle_standard_mode(client, subscription, entries)
 
     # ── 3. 寫入後狀態處理 ──
     if failed > 0: # 汇总失败的文章信息
@@ -304,8 +305,6 @@ def process_subscription(client: NotionClient, config: Config, subscription: Sub
     return written, skipped, failed, deleted
 
 if __name__ == "__main__":
-    config = Config.from_env()
-    
     client = NotionClient(
         api_key=config.notion_api_key,
         retry_times=config.retry_times,
@@ -357,7 +356,7 @@ if __name__ == "__main__":
     total_written = total_skipped = total_failed = total_deleted = 0
 
     for subscription, entries in successed_subscriptions:
-        written, skipped, failed, deleted = process_subscription(client, config, subscription, entries)
+        written, skipped, failed, deleted = process_subscription(client, subscription, entries)
         total_written += written
         total_skipped += skipped
         total_failed += failed
