@@ -23,7 +23,7 @@ class Config:
     mark_err_threshold: int = 10       # 累积错误块数量达到该阈值时，才将订阅状态升级为 Error
     subscription_fetch_status: str = StatusValues.ACTIVE
     subscription_update_status: bool = True
-    aggregation_similarity_percentile: float = 0.025
+    aggregation_similarity_percentile: float = 0.05
 
     @classmethod
     def from_env(cls) -> "Config":
