@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from .utils.config import Config
 from .utils.html2notion_block import html_to_notion_blocks
+from .utils.clustering import cluster_items
 
 from .models import Subscription, RSSEntry
 
@@ -91,30 +92,42 @@ def _handle_aggregated_mode(client: NotionClient, config: Config, subscription: 
         else:
             title = f"{datetime.now(config.timezone).strftime('%m-%d %H:%M')} 彙整"
 
+        # 依照標題相似度分群
+        clusters = cluster_items(new_entries, key=lambda e: e.title, percentile=config.aggregation_similarity_percentile)
+        
         all_blocks = []
-        for entry in new_entries:
-            published_str = entry.published.strftime("%m-%d %H:%M") if entry.published else ""
-            text_content = [
-                {
-                    "type": "text",
-                    "text": {
-                        "content": entry.title,
-                        "link": {"url": entry.url} if entry.url else None
-                    }
-                }
-            ]
-            if published_str:
-                text_content.append({
-                    "type": "text",
-                    "text": {"content": f" ({published_str})"},
-                    "annotations": {"color": "gray"}
+        for i, cluster in enumerate(clusters):
+            # 在不同群組之間插入橫線區隔
+            if i > 0:
+                all_blocks.append({
+                    "object": "block",
+                    "type": "divider",
+                    "divider": {}
                 })
+                
+            for entry in cluster:
+                published_str = entry.published.strftime("%m-%d %H:%M") if entry.published else ""
+                text_content = [
+                    {
+                        "type": "text",
+                        "text": {
+                            "content": entry.title,
+                            "link": {"url": entry.url} if entry.url else None
+                        }
+                    }
+                ]
+                if published_str:
+                    text_content.append({
+                        "type": "text",
+                        "text": {"content": f" ({published_str})"},
+                        "annotations": {"color": "gray"}
+                    })
 
-            all_blocks.append({
-                "object": "block",
-                "type": "bulleted_list_item",
-                "bulleted_list_item": {"rich_text": text_content}
-            })
+                all_blocks.append({
+                    "object": "block",
+                    "type": "bulleted_list_item",
+                    "bulleted_list_item": {"rich_text": text_content}
+                })
 
         dummy_entry = RSSEntry(
             title=title,

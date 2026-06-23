@@ -23,6 +23,7 @@ class Config:
     mark_err_threshold: int = 10       # 累积错误块数量达到该阈值时，才将订阅状态升级为 Error
     subscription_fetch_status: str = StatusValues.ACTIVE
     subscription_update_status: bool = True
+    aggregation_similarity_percentile: float = 0.025
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -63,6 +64,11 @@ class Config:
         subscription_update_status = update_status_str == "true"
         notion_user_id = os.environ.get("NOTION_USER_ID")
 
+        try:
+            percentile = float(os.environ.get("AGGREGATION_SIMILARITY_PERCENTILE", "0.025"))
+        except ValueError:
+            percentile = 0.025
+
         return cls(
             notion_api_key=api_key,
             entries_datasource_id=datasource_id,
@@ -72,4 +78,5 @@ class Config:
             subscription_fetch_status=subscription_fetch_status,
             subscription_update_status=subscription_update_status,
             notion_user_id=notion_user_id,
+            aggregation_similarity_percentile=percentile,
         )
