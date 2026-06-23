@@ -21,3 +21,4 @@ build/
 # Project
 .agents/plans/*
 !.agents/plans/done
+tools/clustering_data.js
