@@ -44,38 +44,11 @@ def get_avaliable_subscriptions(
     for page in pages:
         sub = _parse_subscription(page)
         if isinstance(sub, Subscription):
-            page_blocks = client.get_block_children(page["id"])
-            
-            sub.accumulated_errors = []  # 篩選出 callout 塊作爲已累積的錯誤快
-            for b in page_blocks:
-                if b.get("type") == "callout":
-                    icon_emoji = b.get("callout", {}).get("icon", {}).get("emoji", "")
-                    if icon_emoji in ("🔗", "📦"):
-                        sub.aggregated_urls_block_id = b["id"]
-                        rich_text = b["callout"].get("rich_text", [])
-                        text_content = "".join(rt.get("plain_text", "") for rt in rich_text)
-                        
-                        # 兼容嵌套的 Callout -> Toggle -> Paragraph 結構
-                        if not text_content and b.get("has_children"):
-                            callout_children = client.get_block_children(b["id"])
-                            if callout_children and callout_children[0].get("type") == "toggle":
-                                toggle_children = client.get_block_children(callout_children[0]["id"])
-                                if toggle_children and toggle_children[0].get("type") == "paragraph":
-                                    sub.aggregated_urls_paragraph_id = toggle_children[0]["id"]
-                                    nested_rich_text = toggle_children[0]["paragraph"].get("rich_text", [])
-                                    text_content = "".join(rt.get("plain_text", "") for rt in nested_rich_text)
-
-                        if text_content:
-                            sub.existing_articles.extend(text_content.split("\n"))
-                    else:
-                        sub.accumulated_errors.append(b)
-
-            sub.existing_articles.extend(client.query_pages_by_source(entries_datasource_id, page["id"]))
             subscriptions.append(sub)
             cleanup_str = f"，Cleanup Days 覆寫: {sub.fetch_days}" if sub.fetch_days is not None else ""
-            log.debug(f"   訂閲源獲取 ✓ : {sub.name} 已有 {len(sub.existing_articles)} 條文章记录{cleanup_str}")
+            log.debug(f"   訂閲源獲取 ✓ : {sub.name} (已延遲加載資料){cleanup_str}")
         else: 
-            log.error(f"   訂閲源獲取 ✗ : {page["url"]}")
+            log.error(f"   訂閲源獲取 ✗ : {page['url']}")
 
     log.info(f"读取到 {len(subscriptions)} 个活跃订阅")
     return subscriptions
@@ -125,6 +98,44 @@ def update_subscription_status(
 # ─────────────────────────────────────────────
 # 内部辅助函数
 # ─────────────────────────────────────────────
+
+def lazy_load_subscription_data(
+    client: NotionClient, 
+    subscription: Subscription, 
+    entries_datasource_id: str | None = None,
+    fetch_blocks: bool = False,
+    fetch_articles: bool = False
+) -> None:
+    """延遲加載訂閱源的 Callout 區塊與歷史文章記錄"""
+    if fetch_blocks and not getattr(subscription, "_blocks_loaded", False):
+        page_blocks = client.get_block_children(subscription.page_id)
+        subscription.accumulated_errors = []
+        for b in page_blocks:
+            if b.get("type") == "callout":
+                icon_emoji = b.get("callout", {}).get("icon", {}).get("emoji", "")
+                if icon_emoji in ("🔗", "📦"):
+                    subscription.aggregated_urls_block_id = b["id"]
+                    rich_text = b["callout"].get("rich_text", [])
+                    text_content = "".join(rt.get("plain_text", "") for rt in rich_text)
+                    
+                    if not text_content and b.get("has_children"):
+                        callout_children = client.get_block_children(b["id"])
+                        if callout_children and callout_children[0].get("type") == "toggle":
+                            toggle_children = client.get_block_children(callout_children[0]["id"])
+                            if toggle_children and toggle_children[0].get("type") == "paragraph":
+                                subscription.aggregated_urls_paragraph_id = toggle_children[0]["id"]
+                                nested_rich_text = toggle_children[0]["paragraph"].get("rich_text", [])
+                                text_content = "".join(rt.get("plain_text", "") for rt in nested_rich_text)
+
+                    if text_content:
+                        subscription.existing_articles.extend(text_content.split("\n"))
+                else:
+                    subscription.accumulated_errors.append(b)
+        subscription._blocks_loaded = True
+
+    if fetch_articles and entries_datasource_id and not getattr(subscription, "_articles_loaded", False):
+        subscription.existing_articles.extend(client.query_pages_by_source(entries_datasource_id, subscription.page_id))
+        subscription._articles_loaded = True
 
 def _parse_subscription(page: dict) -> Subscription | None:
     """将 Notion 页面对象解析为 Subscription"""

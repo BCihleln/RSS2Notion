@@ -8,7 +8,7 @@ import time
 from .utils.config import Config
 
 from .notion.client import NotionClient
-from .notion.subscription import update_subscription_status
+from .notion.subscription import update_subscription_status, lazy_load_subscription_data
 from .schema import StatusValues
 from .rss import parse_rss
 
@@ -44,6 +44,7 @@ def fetch_failed(
     - 未达阈值时，将状态清空（select → None），保持订阅仍可被下次轮询到
     - 无论如何都追加带时间戳的错误块
     """
+    lazy_load_subscription_data(client, subscription, fetch_blocks=True)
     existing_error_count = len(subscription.accumulated_errors)
 
     # 含本次即将追加的一条
@@ -75,15 +76,17 @@ def fetch_success(client: NotionClient, subscription: Subscription) -> None:
     清除页面中所有错误 Callout 块。
     返回实际删除的块数量。
     """
-    blocks = subscription.accumulated_errors
     deleted = 0
-    for block in blocks:
-        try:
-            client.delete_block(block["id"])
-            deleted += 1
-            time.sleep(0.2)  # 避免触发速率限制
-        except Exception as e:
-            log.warning(f"   删除错误块 {block['id']} 失败（跳过）: {e}")
+    if subscription.status != StatusValues.ACTIVE:
+        lazy_load_subscription_data(client, subscription, fetch_blocks=True)
+        blocks = subscription.accumulated_errors
+        for block in blocks:
+            try:
+                client.delete_block(block["id"])
+                deleted += 1
+                time.sleep(0.2)  # 避免触发速率限制
+            except Exception as e:
+                log.warning(f"   删除错误块 {block['id']} 失败（跳过）: {e}")
 
     if deleted:
         log.info(f"   ✓ 已清除 {deleted} 个历史错误块")

@@ -16,7 +16,7 @@ from .sync import fetch_subscription, fetch_failed, fetch_success
 
 from .notion.client import NotionClient
 from .notion.cleanup import cleanup_filtered_articles
-from .notion.subscription import get_avaliable_subscriptions
+from .notion.subscription import get_avaliable_subscriptions, lazy_load_subscription_data
 from .notion.validation import SchemaValidationError, validate_notion_setup
 from .schema import EntryFields, StateValues
 
@@ -236,6 +236,14 @@ def process_subscription(client: NotionClient, subscription: Subscription, entri
         return 0, 0, 0, 0
     else:
         log.info(f"   導入文章：{import_msg} ({before_filter} → {len(entries)})")
+        
+        lazy_load_subscription_data(
+            client, 
+            subscription, 
+            entries_datasource_id=config.entries_datasource_id, 
+            fetch_blocks=True, 
+            fetch_articles=True
+        )
 
     # ── 2. 執行寫入 (區分模式) ──
     if getattr(subscription, "is_aggregated", False):
