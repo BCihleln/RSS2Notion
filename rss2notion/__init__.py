@@ -10,8 +10,8 @@ try:
     env_path = os.path.join(project_root, ".env")
     
     if os.path.exists(env_path):
-        load_dotenv(dotenv_path=env_path)
+        load_dotenv(dotenv_path=env_path, override=True)
     else:
-        load_dotenv()
+        load_dotenv(override=True)
 except ImportError:
     pass
