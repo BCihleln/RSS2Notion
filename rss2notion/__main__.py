@@ -326,11 +326,10 @@ if __name__ == "__main__":
         log.error(str(e))
         exit(1)
 
-    # 获取所有活跃订阅
+    # ── 階段零：Notion 獲取訂閲清單──
     try:
         subscriptions = get_avaliable_subscriptions(client, 
-            config.feeds_datasource_id, 
-            config.entries_datasource_id)
+            config.feeds_datasource_id)
     except Exception as e:
         log.error(f"读取订阅数据库失败: {e}")
         exit(0)

@@ -49,5 +49,5 @@ class Subscription:
     is_aggregated: bool = False
     aggregated_urls_block_id: str | None = None
     aggregated_urls_paragraph_id: str | None = None
-    _blocks_loaded: bool = False
-    _articles_loaded: bool = False
+    blocks_loaded: bool = False
+    articles_loaded: bool = False
