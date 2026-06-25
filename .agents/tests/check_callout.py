@@ -13,8 +13,7 @@ def main():
 
     subscriptions = get_avaliable_subscriptions(
         client, 
-        config.feeds_datasource_id, 
-        config.entries_datasource_id
+        config.subscriptions_datasource_id, 
     )
 
     found_aggregated = False
