@@ -67,11 +67,6 @@ class NotionClient:
         """Retrieve a Notion data source schema, including its properties."""
         return self._request("GET", f"/data_sources/{data_source_id}")
 
-    # ─────────────────────────────────────────────
-    # 阅读数据库操作
-    # ─────────────────────────────────────────────
-
-
     def create_page(
         self,
         parent: dict,
@@ -113,10 +108,6 @@ class NotionClient:
     def delete_page(self, page_id: str) -> dict:
         """将页面移入回收站（30 天内可在 Notion 回收站恢复）"""
         return self._request("PATCH", f"/pages/{page_id}", json={"in_trash": True})
-
-    # ─────────────────────────────────────────────
-    # 错误块管理
-    # ─────────────────────────────────────────────
 
     def get_block_children(self, block_id: str) -> list[dict]:
         """获取页面/块的直接子块列表（支持分页）"""
@@ -164,9 +155,3 @@ class NotionClient:
                 log.warning(f"   ✗ 无法获取 Notion 使用者 ID: {e}")
 
         return self.notion_user_id
-
-# ─────────────────────────────────────────────
-# 内部辅助函数
-# ─────────────────────────────────────────────
-
-

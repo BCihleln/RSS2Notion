@@ -11,7 +11,7 @@ from .utils.html2notion_block import html_to_notion_blocks
 from .utils.clustering import cluster_items
 
 from .notion.client import NotionClient
-from .notion.subscription import lazy_load_subscription_data, handle_subscription_failure, handle_subscription_success
+from .notion.subscription import lazy_load_subscription_data, handle_subscription_failure, handle_subscription_success, append_aggregated_urls_block, append_error_block
 from .notion.cleanup import cleanup_filtered_articles
 from .schema import EntryFields, StateValues
 from .rss import parse_rss
@@ -149,7 +149,7 @@ def _handle_aggregated_mode(client: NotionClient, subscription: Subscription, en
                 # Fallback to updating the old callout directly if paragraph ID wasn't found
                 client.update_block_text(subscription.aggregated_urls_block_id, urls_str, block_type="callout")
             else:
-                new_id = client.append_aggregated_urls_block(subscription.page_id, urls_str)
+                new_id = append_aggregated_urls_block(client, subscription.page_id, urls_str)
                 subscription.aggregated_urls_block_id = new_id
         except Exception as e:
             log.error(f"    ✗ 更新 Callout 失败: {e}")
@@ -201,7 +201,7 @@ def process_subscription(client: NotionClient, subscription: Subscription, entri
     # ── 1. 時間/數量粗篩 ──
     import_days = 1
     is_overwrite_str = ""
-    if (subscription.fetch_days is not None) and len(subscription.existing_articles) > 0:
+    if subscription.fetch_days is not None:
         import_days = subscription.fetch_days
         is_overwrite_str = " (覆寫默認) "
     else:
@@ -253,7 +253,7 @@ def process_subscription(client: NotionClient, subscription: Subscription, entri
             handle_subscription_failure(client, subscription, error_summary)
         else: # 部分失败：视为成功（清空错误块），但仍追加本次错误记录
             handle_subscription_success(client, subscription)
-            client.append_error_block(subscription.page_id, error_summary)
+            append_error_block(client, subscription.page_id, error_summary)
     else: # 完全成功：清空历史错误块并置 Active
         handle_subscription_success(client, subscription)
 

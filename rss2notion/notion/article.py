@@ -22,8 +22,10 @@ def query_existing_article_urls(client: NotionClient, datasource_id: str, source
     for page in client._paginate("POST", f"/data_sources/{datasource_id}/query", json=body):
         if (url := page.get("properties", {}).get(EntryFields.URL, {}).get("url","")):
             existing_urls_titles.add(url)
-        if (title := page.get("properties", {}).get(EntryFields.NAME, {}).get("title", [])[0].get("plain_text", "")):
-            existing_urls_titles.add(title)
+        title_list = page.get("properties", {}).get(EntryFields.NAME, {}).get("title", [])
+        if title_list:
+            title = "".join(item.get("plain_text", "") for item in title_list).strip()
+            if title: existing_urls_titles.add(title)
     return [*existing_urls_titles]
 
 

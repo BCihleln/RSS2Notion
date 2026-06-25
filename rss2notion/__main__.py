@@ -3,8 +3,6 @@
 """
 
 import logging
-import time
-from datetime import datetime, timedelta
 
 from .utils.config import Config
 from .models import Subscription, RSSEntry
@@ -45,11 +43,11 @@ if __name__ == "__main__":
         subscriptions = get_avaliable_subscriptions(client, 
             config.feeds_datasource_id)
     except Exception as e:
-        log.error(f"读取订阅数据库失败: {e}")
+        log.error(f"讀取訂閲數據庫失敗: {e}")
         exit(0)
 
     if not subscriptions:
-        log.warning("没有活跃的订阅，退出")
+        log.warning("沒有可用訂閲，推出")
         exit(0)
     
     # ── 階段一：並發拉取所有 RSS（純網絡 I/O）──

@@ -205,7 +205,8 @@ def _parse_subscription(page: dict) -> Subscription | None:
         cleanup_days: int | None = int(cleanup_days_raw) if cleanup_days_raw is not None else None
 
         # Fetch Amount（number 類型）；空值保留 None，表示沿用全局值
-        fetch_amount: int | None = props.get(SubscriptionFields.FETCH_AMOUNT, {}).get("number", None)
+        fetch_amount_raw = props.get(SubscriptionFields.FETCH_AMOUNT, {}).get("number", None)
+        fetch_amount: int | None = int(fetch_amount_raw) if fetch_amount_raw is not None else None
 
         is_aggregated: bool = props.get(SubscriptionFields.AGGREGATED, {}).get("checkbox", False)
 
