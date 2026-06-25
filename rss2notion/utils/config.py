@@ -11,8 +11,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 @dataclass
 class Config:
     notion_api_key: str
-    entries_datasource_id: str           # 文章数据库 ID
-    feeds_datasource_id: str             # 订阅数据库 ID
+    articles_datasource_id: str           # 文章数据库 ID
+    subscriptions_datasource_id: str             # 订阅数据库 ID
     timezone: ZoneInfo                 # 时区对象
     cleanup_days: int                  # 清理天数，-1 表示不清理
     notion_user_id: str | None = None  # Notion 使用者 ID
@@ -71,8 +71,8 @@ class Config:
 
         return cls(
             notion_api_key=api_key,
-            entries_datasource_id=datasource_id,
-            feeds_datasource_id=sub_datasource_id,
+            articles_datasource_id=datasource_id,
+            subscriptions_datasource_id=sub_datasource_id,
             timezone=tz,
             cleanup_days=cleanup_days,
             subscription_fetch_status=subscription_fetch_status,

@@ -68,14 +68,14 @@ def validate_notion_setup(client: NotionClient, config: Config) -> None:
     article_result = validate_data_source(
         client,
         role="Articles",
-        data_source_id=config.entries_datasource_id,
+        data_source_id=config.articles_datasource_id,
         required_properties=ARTICLE_REQUIRED_PROPERTIES,
         env_name="NOTION_ARTICLES_DATABASE_ID",
     )
     feed_result = validate_data_source(
         client,
         role="Feeds",
-        data_source_id=config.feeds_datasource_id,
+        data_source_id=config.subscriptions_datasource_id,
         required_properties=FEED_REQUIRED_PROPERTIES,
         optional_typed_properties=FEED_OPTIONAL_TYPED_PROPERTIES,
         optional_warning_properties=FEED_OPTIONAL_WARNING_PROPERTIES,
@@ -84,7 +84,7 @@ def validate_notion_setup(client: NotionClient, config: Config) -> None:
 
     results = [article_result, feed_result]
     _add_swapped_id_hint(article_result, feed_result)
-    _add_source_relation_hint(article_result, feed_result, config.feeds_datasource_id)
+    _add_source_relation_hint(article_result, feed_result, config.subscriptions_datasource_id)
 
     for result in results:
         for warning in result.warnings:

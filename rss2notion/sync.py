@@ -11,13 +11,11 @@ from .utils.html2notion_block import html_to_notion_blocks
 from .utils.clustering import cluster_items
 
 from .notion.client import NotionClient
-from .notion.subscription import lazy_load_subscription_data, handle_subscription_failure, handle_subscription_success, append_aggregated_urls_block, append_error_block
+from .notion.subscription import Subscription
 from .notion.cleanup import cleanup_filtered_articles
 from .schema import EntryFields, StateValues
 from .rss import parse_rss
-from .models import Subscription, RSSEntry
-
-from .notion.article import should_skip_entry, create_article_page
+from .notion.article import Article
 
 log = logging.getLogger(__name__)
 config = Config.from_env()
@@ -36,17 +34,17 @@ def fetch_subscription(subscription: Subscription):
     except Exception as e:
         return subscription, e
 
-def _write_page_with_blocks(client: NotionClient, entry: RSSEntry, source_page_id: str, all_blocks: list[dict]) -> dict:
+def _write_page_with_blocks(client: NotionClient, article: Article, source_page_id: str, all_blocks: list[dict]) -> dict:
     """建立 Notion 頁面並寫入所有區塊，處理分批與鎖定，回傳 page API response"""
     first_batch = all_blocks[:config.notion_block_limit]
     rest_blocks = all_blocks[config.notion_block_limit:]
 
-    page = create_article_page(
+    article.blocks = first_batch
+    page = article.save_to_notion(
         client=client,
-        datasource_id=config.entries_datasource_id,
-        entry=entry,
+        datasource_id=config.articles_datasource_id,
         source_page_id=source_page_id,
-        blocks=first_batch,
+        save_blocks=True,
     )
     page_id = page["id"]
 
@@ -57,27 +55,27 @@ def _write_page_with_blocks(client: NotionClient, entry: RSSEntry, source_page_i
     time.sleep(0.334)
     return page
 
-def _handle_aggregated_mode(client: NotionClient, subscription: Subscription, entries: list[RSSEntry]) -> tuple[int, int, int, list[dict]]:
+def _handle_aggregated_mode(client: NotionClient, subscription: Subscription, articles: list[Article]) -> tuple[int, int, int, list[dict]]:
     """處理彙整模式的寫入邏輯，回傳 (written, skipped, failed, failed_entries)"""
     written = skipped = failed = 0
     failed_entries: list[dict] = []
     all_urls = []
-    new_entries = []
+    new_articles = []
 
-    for entry in entries:
-        if entry.url:
-            all_urls.append(entry.url)
+    for article in articles:
+        if article.url:
+            all_urls.append(article.url)
         
-        skip_msg = should_skip_entry(subscription, entry)
+        skip_msg = article.should_skip(subscription)
         if skip_msg:
             log.debug(f"   跳過: {skip_msg}")
             skipped += 1
             continue
         
-        new_entries.append(entry)
+        new_articles.append(article)
 
-    if new_entries:
-        published_times = [e.published for e in new_entries if e.published]
+    if new_articles:
+        published_times = [a.published for a in new_articles if a.published]
         if published_times:
             min_time = min(published_times).strftime("%m-%d %H:%M")
             max_time = max(published_times).strftime("%m-%d %H:%M")
@@ -86,7 +84,7 @@ def _handle_aggregated_mode(client: NotionClient, subscription: Subscription, en
             title = f"{datetime.now(config.timezone).strftime('%m-%d %H:%M')} 彙整"
 
         # 依照標題相似度分群
-        clusters = cluster_items(new_entries, key=lambda e: e.title, percentile=config.aggregation_similarity_percentile)
+        clusters = cluster_items(new_articles, key=lambda a: a.title, percentile=config.aggregation_similarity_percentile)
         
         all_blocks = []
         for i, cluster in enumerate(clusters):
@@ -98,14 +96,14 @@ def _handle_aggregated_mode(client: NotionClient, subscription: Subscription, en
                     "divider": {}
                 })
                 
-            for entry in cluster:
-                published_str = entry.published.strftime("%m-%d %H:%M") if entry.published else ""
+            for article in cluster:
+                published_str = article.published.strftime("%m-%d %H:%M") if article.published else ""
                 text_content = [
                     {
                         "type": "text",
                         "text": {
-                            "content": entry.title,
-                            "link": {"url": entry.url} if entry.url else None
+                            "content": article.title,
+                            "link": {"url": article.url} if article.url else None
                         }
                     }
                 ]
@@ -122,7 +120,7 @@ def _handle_aggregated_mode(client: NotionClient, subscription: Subscription, en
                     "bulleted_list_item": {"rich_text": text_content}
                 })
 
-        dummy_entry = RSSEntry(
+        dummy_article = Article(
             title=title,
             url=subscription.url,
             published=max(published_times) if published_times else datetime.now(config.timezone),
@@ -131,14 +129,14 @@ def _handle_aggregated_mode(client: NotionClient, subscription: Subscription, en
         )
 
         try:
-            page = _write_page_with_blocks(client, dummy_entry, subscription.page_id, all_blocks)
-            written += len(new_entries)
-            log.info(f"    ✓ 写入彙整頁面: {title} (包含 {len(new_entries)} 篇文章)")
+            page = _write_page_with_blocks(client, dummy_article, subscription.page_id, all_blocks)
+            written += len(new_articles)
+            log.info(f"    ✓ 写入彙整頁面: {title} (包含 {len(new_articles)} 篇文章)")
             log.info(f"    ------- {page['url']}")
         except Exception as e:
             log.error(f"    ✗ 写入彙整頁面失败: {e}")
             failed_entries.append({"title": title, "error": str(e)[:100]})
-            failed += len(new_entries)
+            failed += len(new_articles)
     
     if failed == 0 and all_urls:
         urls_str = "\n".join(all_urls)
@@ -149,22 +147,22 @@ def _handle_aggregated_mode(client: NotionClient, subscription: Subscription, en
                 # Fallback to updating the old callout directly if paragraph ID wasn't found
                 client.update_block_text(subscription.aggregated_urls_block_id, urls_str, block_type="callout")
             else:
-                new_id = append_aggregated_urls_block(client, subscription.page_id, urls_str)
+                new_id = subscription.append_aggregated_urls_block(client, urls_str)
                 subscription.aggregated_urls_block_id = new_id
         except Exception as e:
             log.error(f"    ✗ 更新 Callout 失败: {e}")
 
     return written, skipped, failed, failed_entries
 
-def _handle_standard_mode(client: NotionClient, subscription: Subscription, entries: list[RSSEntry]) -> tuple[int, int, int, list[dict]]:
+def _handle_standard_mode(client: NotionClient, subscription: Subscription, articles: list[Article]) -> tuple[int, int, int, list[dict]]:
     """處理標準模式的寫入邏輯，回傳 (written, skipped, failed, failed_entries)"""
     written = skipped = failed = 0
     failed_entries: list[dict] = []
 
-    for idx, entry in enumerate(entries, 1):
-        log.debug(f"   [{idx}/{len(entries)}] {entry.title[:60]}")
+    for idx, article in enumerate(articles, 1):
+        log.debug(f"   [{idx}/{len(articles)}] {article.title[:60]}")
 
-        skip_msg = should_skip_entry(subscription, entry)
+        skip_msg = article.should_skip(subscription)
         if skip_msg: 
             log.debug(f"   跳過: {skip_msg}")
             skipped += 1
@@ -172,31 +170,31 @@ def _handle_standard_mode(client: NotionClient, subscription: Subscription, entr
 
         try:
             all_blocks = []
-            if entry.content_html:
-                all_blocks = html_to_notion_blocks(entry.content_html)
+            if article.content_html:
+                all_blocks = html_to_notion_blocks(article.content_html)
                 img_count = sum(1 for b in all_blocks if b.get("type") == "image")
                 log.debug(f"    blocks: {len(all_blocks)} 个（含 {img_count} 张图片）")
 
-            page = _write_page_with_blocks(client, entry, subscription.page_id, all_blocks)
+            page = _write_page_with_blocks(client, article, subscription.page_id, all_blocks)
 
-            log.info(f"    ✓ 写入: {entry.title}")
+            log.info(f"    ✓ 写入: {article.title}")
             log.info(f"    ------- {page['url']}")
-            subscription.existing_articles.append(entry.url)
+            subscription.existing_articles.append(article.url)
             written += 1
         except Exception as e:
             log.error(f"    ✗ 写入失败: {e}")
             failed_entries.append({
-                "title": entry.title[:60],
+                "title": article.title[:60],
                 "error": str(e)[:100],  # 截断错误消息
             })
             failed += 1
 
     return written, skipped, failed, failed_entries
 
-def process_subscription(client: NotionClient, subscription: Subscription, entries: list[RSSEntry]) -> tuple[int, int, int, int]:
+def process_subscription(client: NotionClient, subscription: Subscription, articles: list[Article]) -> tuple[int, int, int, int]:
     """處理單一訂閱源的所有邏輯，包含時間篩選、寫入 Notion 及清理往期文章"""
     log.info(f"── 处理订阅: {subscription.name or subscription.url}")
-    before_filter = len(entries)
+    before_filter = len(articles)
 
     # ── 1. 時間/數量粗篩 ──
     import_days = 1
@@ -210,52 +208,46 @@ def process_subscription(client: NotionClient, subscription: Subscription, entri
     import_msg = ""
     cutoff = (datetime.now(config.timezone) - timedelta(days=import_days)).replace(hour=0,minute=0,second=0, microsecond=0)
     if import_days > 0:
-        entries = [e for e in entries if e.published >= cutoff]
+        articles = [a for a in articles if a.published >= cutoff]
         import_msg = f"{is_overwrite_str}最近 {import_days} 天 (自 {cutoff})"
     else: # 無時限時，限定導入的最大數量 (避免全量導入)
         import_msg = f"歷史 {config.max_import_count} 篇"
-        entries = entries[:config.max_import_count]
+        articles = articles[:config.max_import_count]
 
     if subscription.fetch_amount: # 根據訂閱源配置再篩最新的指定篇數
-        entries = entries[:subscription.fetch_amount]
+        articles = articles[:subscription.fetch_amount]
         import_msg += f" 最近 {subscription.fetch_amount} 篇"
 
-    if not entries:
+    if not articles:
         log.info("   没有新文章，跳过")
-        handle_subscription_success(client, subscription)
+        subscription.mark_active(client)
         return 0, 0, 0, 0
     else:
-        log.info(f"   導入文章：{import_msg} ({before_filter} → {len(entries)})")
+        log.info(f"   導入文章：{import_msg} ({before_filter} → {len(articles)})")
         
-        lazy_load_subscription_data(
+        subscription.lazy_load(
             client, 
-            subscription, 
-            entries_datasource_id=config.entries_datasource_id, 
+            articles_datasource_id=config.articles_datasource_id, 
             fetch_blocks=True, 
             fetch_articles=True
         )
 
     # ── 2. 執行寫入 (區分模式) ──
-    if getattr(subscription, "is_aggregated", False):
-        written, skipped, failed, failed_entries = _handle_aggregated_mode(client, subscription, entries)
+    if subscription.is_aggregated:
+        written, skipped, failed, failed_articles = _handle_aggregated_mode(client, subscription, articles)
     else:
-        written, skipped, failed, failed_entries = _handle_standard_mode(client, subscription, entries)
+        written, skipped, failed, failed_articles = _handle_standard_mode(client, subscription, articles)
 
     # ── 3. 寫入後狀態處理 ──
     if failed > 0: # 汇总失败的文章信息
-        error_summary = f"文章写入失败 ({failed}/{len(entries)})"
-        for entry_info in failed_entries[:3]:  # 最多显示前 3 个失败
-            error_summary += f"\n- {entry_info['title']}: {entry_info['error']}"
-        if len(failed_entries) > 3:
-            error_summary += f"\n... 等 {len(failed_entries) - 3} 个失败"
-
-        if written == 0: # 全部失败：走与 RSS 拉取失败相同的错误计数逻辑
-            handle_subscription_failure(client, subscription, error_summary)
-        else: # 部分失败：视为成功（清空错误块），但仍追加本次错误记录
-            handle_subscription_success(client, subscription)
-            append_error_block(client, subscription.page_id, error_summary)
+        error_summary = f"文章写入失败 ({failed}/{len(articles)})"
+        for article_info in failed_articles[:3]:  # 最多显示前 3 个失败
+            error_summary += f"\n- {article_info['title']}: {article_info['error']}"
+        if len(failed_articles) > 3:
+            error_summary += f"\n... 等 {len(failed_articles) - 3} 个失败"
+        subscription.mark_error(client, error_msg=error_summary)
     else: # 完全成功：清空历史错误块并置 Active
-        handle_subscription_success(client, subscription)
+        subscription.mark_active(client)
 
     # ── 4. 清理往期文章 ──
     log.debug(f"   清理配置：{import_days} 天{is_overwrite_str}")
@@ -287,7 +279,7 @@ def process_subscription(client: NotionClient, subscription: Subscription, entri
 
     deleted = cleanup_filtered_articles(
             client,
-            datasource_id=config.entries_datasource_id,
+            datasource_id=config.articles_datasource_id,
             source_page_id=subscription.page_id,
             filters=filters,
             keep_latest_count=keep_latest_count)

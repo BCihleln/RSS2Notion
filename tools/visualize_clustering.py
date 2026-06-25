@@ -24,7 +24,7 @@ def main():
     
     subscriptions = get_avaliable_subscriptions(
         client, 
-        config.entries_datasource_id
+        config.articles_datasource_id
     )
     
     agg_sub = next((s for s in subscriptions if getattr(s, 'is_aggregated', False)), None)

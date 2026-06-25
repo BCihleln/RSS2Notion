@@ -69,7 +69,7 @@ def import_opml(opml_path: str | Path, config: Config) -> dict:
     )
 
     # 批量查詢已存在的 URL，避免逐條查詢
-    existing_urls = _fetch_all_feed_urls(client, config.feeds_datasource_id)
+    existing_urls = _fetch_all_feed_urls(client, config.subscriptions_datasource_id)
     log.info(f"Notion 中已有 {len(existing_urls)} 條訂閱源（用於去重）")
 
     added = skipped = failed = 0
@@ -95,7 +95,7 @@ def import_opml(opml_path: str | Path, config: Config) -> dict:
 
             _create_feed_page(
                 client=client,
-                datasource_id=config.feeds_datasource_id,
+                datasource_id=config.subscriptions_datasource_id,
                 title=entry.title or entry.xml_url,
                 xml_url=entry.xml_url,
                 icon_url=icon_url,
@@ -140,7 +140,7 @@ def export_opml(output_path: str | Path, config: Config) -> None:
         retry_delay=config.retry_delay,
     )
 
-    subscriptions = _fetch_all_subscriptions(client, config.feeds_datasource_id)
+    subscriptions = _fetch_all_subscriptions(client, config.subscriptions_datasource_id)
     log.info(f"共讀取到 {len(subscriptions)} 條訂閱源")
 
     # 按第一個 Tag 分組；無 Tag 歸入 "Uncategorized"

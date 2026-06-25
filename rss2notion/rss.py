@@ -8,7 +8,8 @@ from datetime import datetime, timezone
 import re
 from time import struct_time
 
-from .models import RSSEntry, Subscription
+from .notion.article import Article
+from .notion.subscription import Subscription
 from .utils.fetcher import fetch_and_parse_feed
 
 log = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ def _extract_date_from_text(text: str) -> datetime | None:
             except ValueError: continue  # 命中但值不合法，試下一個 pattern
     return None
 
-def parse_rss(subscirption: Subscription) -> list[RSSEntry]:
+def parse_rss(subscirption: Subscription) -> list[Article]:
     """解析 RSS feed，返回条目列表"""
     log.debug(f"   解析 RSS: {subscirption.url}")
     
@@ -98,7 +99,7 @@ def parse_rss(subscirption: Subscription) -> list[RSSEntry]:
 
     parsed_entries = []
     for entry in parse_result.entries:
-        rss_entry = RSSEntry(
+        rss_entry = Article(
             title           = str(entry.get("title", "No Title")),
             url             = str(entry.get("link", "")),
             published       = _parse_entry_published(entry, feed_updated_tuple),

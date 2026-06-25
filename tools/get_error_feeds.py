@@ -17,7 +17,7 @@ body = {
     "page_size": 100,
 }
 
-pages = client._paginate("POST", f"/data_sources/{config.feeds_datasource_id}/query", json=body)
+pages = client._paginate("POST", f"/data_sources/{config.subscriptions_datasource_id}/query", json=body)
 for page in pages:
     sub = _parse_subscription(page)
     if sub:
