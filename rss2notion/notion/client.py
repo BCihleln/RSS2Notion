@@ -2,19 +2,13 @@
 Notion API 基础客户端
 """
 
-from ..models import RSSEntry 
 import logging
 import time
-from datetime import datetime, timezone
 
 import requests
 
-from ..schema import EntryFields, StateValues
-
 log = logging.getLogger(__name__)
 
-# 用于识别错误 Callout 块的标志 emoji
-_ERROR_BLOCK_EMOJI = "⚠️"
 _NOTION_API_VERSION = "2025-09-03"
 
 class NotionClient:
@@ -77,54 +71,30 @@ class NotionClient:
     # 阅读数据库操作
     # ─────────────────────────────────────────────
 
-    def query_pages_by_source(self, datasource_id: str, source_page_id: str) -> list[str]:
-        """
-        批量查询阅读数据库中指定订阅源的所有已存在文章，返回 URL 與標題 集合。
-        用于高效去重：避免逐条 API 查询。
-        """
-        existing_urls_titles: set[str] = set()
-        body = {
-            "filter": {
-                "property": EntryFields.SOURCE,
-                "relation": {"contains": source_page_id},
-            },
-            "page_size": 100,
-        }
-        existing_urls_titles: set[str] = set()
-        for page in self._paginate("POST", f"/data_sources/{datasource_id}/query", json=body):
-            if (url := page.get("properties", {}).get(EntryFields.URL, {}).get("url","")):
-                existing_urls_titles.add(url)
-            if (title := page.get("properties", {}).get(EntryFields.NAME, {}).get("title", [])[0].get("plain_text", "")):
-                existing_urls_titles.add(title)
-        return [*existing_urls_titles]
 
     def create_page(
         self,
-        datasource_id: str,
-        entry,
-        source_page_id: str | None = None,
-        blocks: list[dict] | None = None,
+        parent: dict,
+        properties: dict,
+        children: list[dict] | None = None,
+        cover: dict | None = None,
     ) -> dict:
-        """创建阅读数据库页面
+        """创建页面
         
         Args:
-            datasource_id: 数据库 ID
-            entry: RSS 条目对象
-            source_page_id: 订阅源页面 ID（可选）
-            blocks: Notion blocks 列表。若提供，则包含全文内容；否则仅保存元数据
+            parent: parent object, e.g. {"type": "data_source_id", "data_source_id": datasource_id}
+            properties: 頁面屬性字典
+            children: 頁面的內容區塊 (可選)
+            cover: 頁面的封面 (可選)
         """
-        properties = _build_entry_properties(entry, source_page_id)
         payload: dict = {
-            "parent": {"type": "data_source_id", "data_source_id": datasource_id},
+            "parent": parent,
             "properties": properties,
         }
-        if blocks:
-            payload["children"] = blocks
-        if entry.cover_image:
-            payload["cover"] = {
-                "type": "external",
-                "external": {"url": entry.cover_image},
-            }
+        if children:
+            payload["children"] = children
+        if cover:
+            payload["cover"] = cover
         return self._request("POST", "/pages", json=payload)
 
     def lock_page(self, page_id: str) -> None:
@@ -177,59 +147,6 @@ class NotionClient:
         }
         self._request("PATCH", f"/blocks/{block_id}", json=body)
 
-    def append_aggregated_urls_block(self, page_id: str, new_text: str) -> str:
-        """
-        附加一個 Aggregated 模式用來儲存 URLs 的 Callout Block (Emoji 📦)。
-        包含 Toggle -> Paragraph 的嵌套結構。
-        回傳新建 block 的 ID。
-        """
-        rich_text = []
-        for i in range(0, len(new_text), 2000):
-            rich_text.append({
-                "type": "text",
-                "text": {"content": new_text[i:i+2000]}
-            })
-
-        block = {
-            "object": "block",
-            "type": "callout",
-            "callout": {
-                "rich_text": [],
-                "icon": {
-                    "type": "emoji",
-                    "emoji": "📦"
-                },
-                "children": [
-                    {
-                        "object": "block",
-                        "type": "toggle",
-                        "toggle": {
-                            "rich_text": [
-                                {
-                                    "type": "text",
-                                    "text": {"content": "Aggregate Mode de-dup Info"},
-                                    "annotations": {"bold": True}
-                                }
-                            ],
-                            "children": [
-                                {
-                                    "object": "block",
-                                    "type": "paragraph",
-                                    "paragraph": {
-                                        "rich_text": rich_text
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        }
-        res = self._request("PATCH", f"/blocks/{page_id}/children", json={"children": [block]})
-        results = res.get("results", [])
-        if results:
-            return results[0].get("id", "")
-        return ""
 
     def _get_notion_user_id(self) -> str | None:
         """延迟解析并缓存 Notion 用户 ID"""
@@ -248,104 +165,8 @@ class NotionClient:
 
         return self.notion_user_id
 
-    def append_error_block(self, page_id: str, error_msg: str, mention_user: bool = False) -> None:
-        """追加带时间戳的错误 Callout 块到页面。
-
-        Args:
-            page_id: 目标页面 ID
-            error_msg: 错误信息字符串
-            mention_user: 是否提及使用者
-        """
-        try:
-            user_id = self._get_notion_user_id() if mention_user else None
-            block = _build_error_block(error_msg, user_id=user_id)
-            self.append_blocks(page_id, [block])
-            log.info(f"   ✓ 错误块已记录到页面 {page_id}")
-        except Exception as e:
-            log.warning(f"   ✗ 错误块写入失败（不影响主流程）: {e}")
-
-
 # ─────────────────────────────────────────────
 # 内部辅助函数
 # ─────────────────────────────────────────────
 
-def _build_error_block(error_msg: str, user_id: str | None = None) -> dict:
-    """生成带时间戳的 Notion Callout block（⚠️ 红色背景）
 
-    Args:
-        error_msg: 错误消息字符串
-        user_id: 需 mention 的使用者 ID (可选)
-
-    Returns:
-        符合 Notion Block 规范的字典
-    """
-    # 截断超长消息（Notion paragraph content 限制 2000 字符）
-    # 拼接时间戳前缀
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    full_msg = f"[{timestamp}] {error_msg}"
-
-    max_length = 2000
-    if len(full_msg) > max_length:
-        full_msg = full_msg[:max_length - 5] + "...[截断]"
-
-    if user_id:
-        full_msg += " "
-
-    rich_text = [
-        {
-            "type": "text",
-            "text": {
-                "content": full_msg,
-                "link": None,
-            },
-        }
-    ]
-
-    if user_id:
-        rich_text.append({
-            "type": "mention",
-            "mention": {
-                "type": "user",
-                "user": {"id": user_id}
-            }
-        })
-
-    return {
-        "object": "block",
-        "type": "callout",
-        "callout": {
-            "rich_text": rich_text,
-            "icon": {
-                "type": "emoji",
-                "emoji": _ERROR_BLOCK_EMOJI,
-            },
-            "color": "red_background",
-        },
-    }
-
-
-def _build_entry_properties(
-        entry: RSSEntry, 
-        source_page_id: str | None) -> dict:
-    """构建阅读数据库页面的 properties"""
-    # 构建标题，如果有 URL 則添加超鏈接
-    title_rich_text = {
-        "type": "text",
-        "text": {
-            "content": entry.title[:2000],
-        },
-    }
-    if entry.url:
-        title_rich_text["text"]["link"] = {"url": entry.url}
-    
-    properties: dict = {
-        EntryFields.NAME:      {"title": [title_rich_text]},
-        EntryFields.URL:       {"url": entry.url or None},
-        EntryFields.PUBLISHED: {"date": {"start": entry.published.isoformat()}},
-        EntryFields.STATE:     {"select": {"name": StateValues.UNREAD}},
-    }
-    if source_page_id:
-        properties[EntryFields.SOURCE] = {
-            "relation": [{"id": source_page_id}]
-        }
-    return properties
