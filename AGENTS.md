@@ -41,15 +41,17 @@ rss2notion/
 ├── __main__.py           # 入口：並發拉取 RSS → 串行寫入 Notion → 清理過期文章
 ├── __init__.py
 ├── schema.py             # Notion 字段名和狀態值常量（SubscriptionFields / EntryFields / StatusValues / StateValues）
-├── models.py             # 數據模型：RSSEntry, Subscription
 ├── rss.py                # RSS 解析（parse_rss, 日期/縮略圖/內容提取）
-├── sync.py               # 輔助流程：fetch_success / fetch_failed（錯誤計數、狀態更新）
+├── sync.py               # 同步流程編排：標準/聚合模式寫入、錯誤處理、清理
 └── notion/
 │   ├── client.py         # NotionClient：_request / _paginate / create_page / append_blocks / delete_page 等
-│   ├── subscription.py   # 訂閱數據庫：get_avaliable_subscriptions / update_subscription_status / _parse_subscription
-│   └── cleanup.py        # 自動清理過期文章：cleanup_expired_articles
+│   ├── article.py        # Article dataclass 與 query_existing_article_urls
+│   ├── subscription.py   # Subscription dataclass / get_avaliable_subscriptions / 狀態管理
+│   ├── cleanup.py        # 自動清理過期文章：cleanup_filtered_articles
+│   └── validation.py     # Notion 數據庫 Schema 預檢驗證
 └── utils/
     ├── config.py         # 環境變量 → Config dataclass
+    ├── fetcher.py        # RSS Feed 獲取（多階段 fetch + parse）
     ├── get_favicon.py    # 網站 favicon 抓取工具
     └── html2notion_block.py  # HTML → Notion Blocks 完整轉換管線
 
@@ -87,7 +89,7 @@ tests/
 | `Articles` | `SubscriptionFields.ARTICLES` | relation | 關聯文章數（Notion 自動） |
 | `Cleanup Days` | `SubscriptionFields.CLEANUP_DAYS` | number | 訂閱源級清理天數覆寫 |
 | `Fetch Amount` | `SubscriptionFields.FETCH_AMOUNT` | number | 每次最多拉取篇數 |
-| `Aggregated` | `SubscriptionFields.AGGREGATED` | checkbox | 啟用彙整模式（將多篇文章彙整至單一頁面） |
+| `Aggregated` | `SubscriptionFields.AGGREGATED` | checkbox | 啟用彙整模式（使用 Sub-item 子文章架構） |
 
 ### 文章數據庫（`NOTION_ARTICLES_DATABASE_ID`）
 
@@ -98,8 +100,9 @@ tests/
 | `Published` | `EntryFields.PUBLISHED` | date | 發布時間 |
 | `State` | `EntryFields.STATE` | select | Unread / Reading / Star |
 | `Source` | `EntryFields.SOURCE` | relation | 關聯到訂閱數據庫 |
+| `Aggregate Parent` | `EntryFields.PARENT_ITEM` | relation | Sub-item 父文章（聚合模式用，Notion 自動生成） |
 
-> **注意**：新增 Notion property 需要在三處同步更新：`schema.py`（字段常量）→ `models.py`（Subscription dataclass 字段）→ `subscription.py:_parse_subscription`（解析邏輯）。其中解析步驟最容易遺漏。
+> **注意**：`Aggregate Parent` 和 `Aggregated Articles` 是 Notion 啟用 Sub-items 功能後自動生成的 Relation 屬性。代碼只使用 `Aggregate Parent`（寫入子文章時設定父頁面）。
 
 ## 架構說明
 
@@ -146,6 +149,15 @@ tests/
 - 讀取訂閱時，`get_avaliable_subscriptions` 預先批量查詢每個訂閱源在文章數據庫中的所有 URL，存入 `subscription.existing_articles`（`list[str]`）
 - 寫入前做 `in` 查找去重
 - 同時對發布時間做時間窗口粗篩，減少需要去重的條目數
+- 聚合模式與標準模式使用相同的去重機制（均基於 Database 查詢）
+
+### 聚合模式（Sub-item 子文章架構）
+
+啟用 `Aggregated` checkbox 的訂閱源，使用 Notion Database Sub-item 層級結構：
+- **≥2 篇新文章**：建立一個 Parent 聚合頁面（標題為時間範圍，如 `08-05 12:00 - 16:00 彙整`），每篇文章作為獨立 Database Page 寫入，透過 `Aggregate Parent` relation 掛載為子文章
+- **1 篇新文章**：直接以標準模式寫入（不建立 Parent 頁面）
+- **0 篇新文章**：跳過
+- 子文章包含完整 HTML 渲染內容，在 Notion List View 中可展開/摺疊
 
 ### `_paginate` 通用分頁
 
@@ -154,7 +166,8 @@ tests/
 ## 代碼修改原則
 
 - **字段常量在 `schema.py`，不要硬編碼字段名**：所有 Notion property 名稱只在 `schema.py` 中定義，業務代碼通過常量引用
-- **新增 Notion 字段的三步清單**：`schema.py` → `models.py` → `subscription.py:_parse_subscription`
+- **新增文章數據庫字段**：`schema.py`（常量）→ `article.py:to_notion_properties`（構建 properties）→ `validation.py`（可選驗證）
+- **新增訂閱數據庫字段**：`schema.py`（常量）→ `subscription.py:from_notion_page`（解析）→ `Subscription` dataclass 字段
 - **改動現有文件只給片段**：除非是全新文件，否則只提供修改的代碼片段和精確的插入位置
 - **批量操作優先**：需要多次查詢的場景，優先考慮批量 API 調用（參考 `query_pages_by_source` 的設計）
 - **速率限制**：寫入 Notion 時，每次 `create_page` 後 `time.sleep(0.334)`（~3 req/s）；刪除操作後 `time.sleep(0.3)`

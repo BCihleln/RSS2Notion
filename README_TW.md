@@ -44,7 +44,7 @@
 - **關鍵詞過濾** — 每個訂閱可設定封鎖關鍵詞清單（`Filterout`），標題或連結命中則略過
 - **錯誤追蹤與通知** — 同步失敗時自動將帶有時間戳的錯誤 Callout 區塊附加到訂閱頁面，並預設 @提及工作區擁有者（也可透過 `NOTION_USER_ID` 指定特定使用者）；連續失敗次數達到閾值後才升級為 `Error` 狀態
 - **狀態更新控制** — 支援透過環境變數過濾拉取特定狀態的訂閱源（如僅拉取 `Active`），並可關閉同步失敗時的自動狀態更新
-- **彙整模式** — 對於高頻更新的資訊流，可將多篇文章彙整到單一 Notion 頁面中，保持閱讀資料庫整潔，避免洗版
+- **彙整模式** — 對於高頻更新的資訊流，利用 Notion Sub-item 功能將多篇文章作為子文章掛載至 Parent 頁面下；僅有單篇新文章時則直接以標準模式寫入
 
 **Feed 內容渲染**  
 將 RSS Feed 中已包含的 HTML 內容（`content` 或 `summary` 欄位）轉換為 Notion 塊，保留標題、清單、程式碼區塊、表格、引用及行內格式
@@ -85,9 +85,11 @@ flowchart TD
         K -- 否 --> L[Status → Active\n清除歷史錯誤區塊]
         K -- 是 --> M{是否開啟\n彙整模式?}
         M -- 否 --> N1[HTML → Notion Blocks\ncreate_page 單篇寫入]
-        M -- 是 --> N2[合併多篇 → 單一頁面\n更新 Hash Callout 區塊]
+        M -- 是 --> M2{文章\n篇數?}
+        M2 -- 1 篇 --> N1
+        M2 -- "≥2 篇" --> N3[建立 Parent 聚合頁面\n逐篇寫入為 Sub-item 子文章]
         N1 --> O{寫入結果}
-        N2 --> O
+        N3 --> O
         O -- 成功 --> L
         O -- 失敗 --> P[附加錯誤摘要\nfetch_failed]
     end
@@ -247,7 +249,7 @@ RSS2Notion 啟動時會先檢查這兩個 ID 是否可讀、必要欄位是否�
 | `Articles` | relation | 讀 | 已關聯的文章數量（Notion 自動統計） |
 | `Cleanup Days` | number | 讀 | 訂閱源級保留天數；空白則沿用全域 `CLEANUP_DAYS` |
 | `Fetch Amount` | number | 讀 | 每次最多匯入該訂閱源的文章篇數；空白則不限 |
-| `Aggregated` | checkbox | 讀 | 啟用彙整模式：將多篇文章整合至單一頁面，避免高頻更新洗版 |
+| `Aggregated` | checkbox | 讀 | 啟用彙整模式：利用 Notion Sub-item 功能將多篇文章作為子文章掛載至 Parent 頁面下 |
 
 ### 閱讀資料庫屬性
 
@@ -258,6 +260,9 @@ RSS2Notion 啟動時會先檢查這兩個 ID 是否可讀、必要欄位是否�
 | `Published` | date | 寫 | 發佈時間 |
 | `State` | select | 寫 | 閱讀狀態：`Unread` / Empty (空狀態表示已閱讀) / `Star` |
 | `Source` | relation | 寫 | 關聯到訂閱資料庫 |
+| `Aggregate Parent` | relation | 寫 | Sub-item 父文章（彙整模式用，Notion 啟用 Sub-items 後自動生成） |
+
+> **說明：** `Aggregate Parent` 和 `Aggregated Articles` 是 Notion 啟用 Sub-items 功能後自動建立的 Relation 屬性。程式碼僅寫入 `Aggregate Parent`（建立子文章時設定父頁面）。
 
 ---
 
