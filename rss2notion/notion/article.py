@@ -46,7 +46,7 @@ class Article:
                 
         return ""
 
-    def to_notion_properties(self, source_page_id: str | None) -> dict:
+    def to_notion_properties(self, source_page_id: str | None, parent_item_id: str | None = None) -> dict:
         """构建阅读数据库页面的 properties"""
         # 构建标题，如果有 URL 則添加超鏈接
         title_rich_text = {
@@ -68,6 +68,10 @@ class Article:
             properties[EntryFields.SOURCE] = {
                 "relation": [{"id": source_page_id}]
             }
+        if parent_item_id:
+            properties[EntryFields.PARENT_ITEM] = {
+                "relation": [{"id": parent_item_id}]
+            }
         return properties
 
     def save_to_notion(
@@ -75,10 +79,11 @@ class Article:
         client: NotionClient,
         datasource_id: str,
         source_page_id: str | None,
+        parent_item_id: str | None = None,
         save_blocks: bool = True
     ) -> dict:
         """创建阅读数据库页面并保存内容"""
-        properties = self.to_notion_properties(source_page_id)
+        properties = self.to_notion_properties(source_page_id, parent_item_id=parent_item_id)
         cover = None
         if self.cover_image:
             cover = {

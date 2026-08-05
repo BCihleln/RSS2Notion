@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 
 from .utils.config import Config
 from .utils.html2notion_block import html_to_notion_blocks
-from .utils.clustering import cluster_items
 
 from .notion.client import NotionClient
 from .notion.subscription import Subscription
@@ -55,102 +54,115 @@ def _write_page_with_blocks(client: NotionClient, article: Article, source_page_
     time.sleep(0.334)
     return page
 
+def _write_page_with_blocks_with_parent(
+    client: NotionClient, article: Article, source_page_id: str,
+    parent_item_id: str, all_blocks: list[dict]
+) -> dict:
+    """建立 Notion 子文章頁面（含 Parent-item Relation），處理分批與鎖定"""
+    first_batch = all_blocks[:config.notion_block_limit]
+    rest_blocks = all_blocks[config.notion_block_limit:]
+
+    article.blocks = first_batch
+    page = article.save_to_notion(
+        client=client,
+        datasource_id=config.articles_datasource_id,
+        source_page_id=source_page_id,
+        parent_item_id=parent_item_id,
+        save_blocks=True,
+    )
+    page_id = page["id"]
+
+    if rest_blocks:
+        client.append_blocks(page_id, rest_blocks)
+
+    client.lock_page(page_id)
+    time.sleep(0.334)
+    return page
+
+
 def _handle_aggregated_mode(client: NotionClient, subscription: Subscription, articles: list[Article]) -> tuple[int, int, int, list[dict]]:
-    """處理彙整模式的寫入邏輯，回傳 (written, skipped, failed, failed_entries)"""
+    """處理彙整模式：Sub-item 子文章架構"""
     written = skipped = failed = 0
     failed_entries: list[dict] = []
-    all_urls = []
-    new_articles = []
+    new_articles: list[Article] = []
 
     for article in articles:
-        if article.url:
-            all_urls.append(article.url)
-        
         skip_msg = article.should_skip(subscription)
         if skip_msg:
             log.debug(f"   跳過: {skip_msg}")
             skipped += 1
             continue
-        
         new_articles.append(article)
 
-    if new_articles:
-        published_times = [a.published for a in new_articles if a.published]
-        if published_times:
-            min_time = min(published_times).strftime("%m-%d %H:%M")
-            max_time = max(published_times).strftime("%m-%d %H:%M")
-            title = f"{min_time} 彙整" if min_time == max_time else f"{min_time} - {max_time} 彙整"
-        else:
-            title = f"{datetime.now(config.timezone).strftime('%m-%d %H:%M')} 彙整"
+    if not new_articles:
+        return written, skipped, failed, failed_entries
 
-        # 依照標題相似度分群
-        clusters = cluster_items(new_articles, key=lambda a: a.title, percentile=config.aggregation_similarity_percentile)
-        
-        all_blocks = []
-        for i, cluster in enumerate(clusters):
-            # 在不同群組之間插入橫線區隔
-            if i > 0:
-                all_blocks.append({
-                    "object": "block",
-                    "type": "divider",
-                    "divider": {}
-                })
-                
-            for article in cluster:
-                published_str = article.published.strftime("%m-%d %H:%M") if article.published else ""
-                text_content = [
-                    {
-                        "type": "text",
-                        "text": {
-                            "content": article.title,
-                            "link": {"url": article.url} if article.url else None
-                        }
-                    }
-                ]
-                if published_str:
-                    text_content.append({
-                        "type": "text",
-                        "text": {"content": f" ({published_str})"},
-                        "annotations": {"color": "gray"}
-                    })
-
-                all_blocks.append({
-                    "object": "block",
-                    "type": "bulleted_list_item",
-                    "bulleted_list_item": {"rich_text": text_content}
-                })
-
-        dummy_article = Article(
-            title=title,
-            url=subscription.url,
-            published=max(published_times) if published_times else datetime.now(config.timezone),
-            author="",
-            content_html=""
-        )
-
+    # ── 僅 1 篇：直接以標準模式寫入（不建立 Parent 頁面）──
+    if len(new_articles) == 1:
+        article = new_articles[0]
         try:
-            page = _write_page_with_blocks(client, dummy_article, subscription.page_id, all_blocks)
-            written += len(new_articles)
-            log.info(f"    ✓ 写入彙整頁面: {title} (包含 {len(new_articles)} 篇文章)")
+            all_blocks = html_to_notion_blocks(article.content_html) if article.content_html else []
+            page = _write_page_with_blocks(client, article, subscription.page_id, all_blocks)
+            log.info(f"    ✓ 聚合單篇直寫: {article.title}")
             log.info(f"    ------- {page['url']}")
+            subscription.existing_articles.append(article.url)
+            written += 1
         except Exception as e:
-            log.error(f"    ✗ 写入彙整頁面失败: {e}")
-            failed_entries.append({"title": title, "error": str(e)[:100]})
-            failed += len(new_articles)
-    
-    if failed == 0 and all_urls:
-        urls_str = "\n".join(all_urls)
+            log.error(f"    ✗ 写入失败: {e}")
+            failed_entries.append({"title": article.title[:60], "error": str(e)[:100]})
+            failed += 1
+        return written, skipped, failed, failed_entries
+
+    # ── ≥2 篇：建立 Parent 聚合頁面 + 子文章 ──
+    published_times = [a.published for a in new_articles if a.published]
+    if published_times:
+        min_time = min(published_times).strftime("%m-%d %H:%M")
+        max_time = max(published_times).strftime("%m-%d %H:%M")
+        title = f"{min_time} 彙整" if min_time == max_time else f"{min_time} - {max_time} 彙整"
+    else:
+        title = f"{datetime.now(config.timezone).strftime('%m-%d %H:%M')} 彙整"
+
+    # 建立 Parent 聚合頁面（無 content blocks，標題為時間範圍）
+    parent_article = Article(
+        title=title,
+        url="",
+        published=max(published_times) if published_times else datetime.now(config.timezone),
+        author="",
+        content_html=""
+    )
+
+    try:
+        parent_page = parent_article.save_to_notion(
+            client=client,
+            datasource_id=config.articles_datasource_id,
+            source_page_id=subscription.page_id,
+            save_blocks=False,
+        )
+        parent_page_id = parent_page["id"]
+        client.lock_page(parent_page_id)
+        time.sleep(0.334)
+        log.info(f"    ✓ 建立 Parent 聚合頁面: {title}")
+        log.info(f"    ------- {parent_page['url']}")
+    except Exception as e:
+        log.error(f"    ✗ 建立 Parent 聚合頁面失敗: {e}")
+        failed_entries.append({"title": title, "error": str(e)[:100]})
+        failed += len(new_articles)
+        return written, skipped, failed, failed_entries
+
+    # 逐篇寫入子文章（設定 Parent-item Relation）
+    for idx, article in enumerate(new_articles, 1):
         try:
-            if getattr(subscription, "aggregated_urls_paragraph_id", None):
-                client.update_block_text(subscription.aggregated_urls_paragraph_id, urls_str, block_type="paragraph")
-            elif getattr(subscription, "aggregated_urls_block_id", None):
-                # Fallback to updating the old callout directly if paragraph ID wasn't found
-                client.update_block_text(subscription.aggregated_urls_block_id, urls_str, block_type="callout")
-            else:
-                new_id = subscription.append_aggregated_urls_block(client, urls_str)
-                subscription.aggregated_urls_block_id = new_id
+            all_blocks = html_to_notion_blocks(article.content_html) if article.content_html else []
+            page = _write_page_with_blocks_with_parent(
+                client, article, subscription.page_id, parent_page_id, all_blocks
+            )
+            log.info(f"    ✓ [{idx}/{len(new_articles)}] 子文章: {article.title[:50]}")
+            subscription.existing_articles.append(article.url)
+            written += 1
         except Exception as e:
-            log.error(f"    ✗ 更新 Callout 失败: {e}")
+            log.error(f"    ✗ [{idx}/{len(new_articles)}] 子文章寫入失敗: {e}")
+            failed_entries.append({"title": article.title[:60], "error": str(e)[:100]})
+            failed += 1
 
     return written, skipped, failed, failed_entries
 

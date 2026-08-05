@@ -34,8 +34,6 @@ class Subscription:
     fetch_amount: int | None = None
     fetch_days: int | None = None
     is_aggregated: bool = False
-    aggregated_urls_block_id: str | None = None
-    aggregated_urls_paragraph_id: str | None = None
     blocks_loaded: bool = False
     articles_loaded: bool = False
 
@@ -116,11 +114,8 @@ class Subscription:
             for b in page_blocks:
                 if b.get("type") != "callout":
                     continue
-                    
                 icon_emoji = b.get("callout", {}).get("icon", {}).get("emoji", "")
-                if icon_emoji in ("🔗", "📦"):
-                    self._extract_aggregated_urls(client, b)
-                else:
+                if icon_emoji == _ERROR_BLOCK_EMOJI:
                     self.accumulated_errors.append(b)
             self.blocks_loaded = True
 
@@ -200,78 +195,6 @@ class Subscription:
             client,
             status=StatusValues.ACTIVE,
         )
-
-    def append_aggregated_urls_block(self, client: NotionClient, new_text: str) -> str:
-        """附加一個 Aggregated 模式用來儲存 URLs 的 Callout Block (Emoji 📦)。"""
-        rich_text = []
-        for i in range(0, len(new_text), 2000):
-            rich_text.append({
-                "type": "text",
-                "text": {"content": new_text[i:i+2000]}
-            })
-
-        block = {
-            "object": "block",
-            "type": "callout",
-            "callout": {
-                "rich_text": [],
-                "icon": {
-                    "type": "emoji",
-                    "emoji": "📦"
-                },
-                "children": [
-                    {
-                        "object": "block",
-                        "type": "toggle",
-                        "toggle": {
-                            "rich_text": [
-                                {
-                                    "type": "text",
-                                    "text": {"content": "Aggregate Mode de-dup Info"},
-                                    "annotations": {"bold": True}
-                                }
-                            ],
-                            "children": [
-                                {
-                                    "object": "block",
-                                    "type": "paragraph",
-                                    "paragraph": {
-                                        "rich_text": rich_text
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        }
-        res = client._request("PATCH", f"/blocks/{self.page_id}/children", json={"children": [block]})
-        results = res.get("results", [])
-        if results:
-            return results[0].get("id", "")
-        return ""
-
-    def _extract_aggregated_urls(self, client: NotionClient, block: dict) -> None:
-        """從 Aggregated Subscirption 頁内 callout block 解析出已拉取的 Post Cache"""
-        self.aggregated_urls_block_id = block["id"]
-        rich_text = block["callout"].get("rich_text", [])
-        text_content = "".join(rt.get("plain_text", "") for rt in rich_text)
-        
-        if not text_content and block.get("has_children"):
-            callout_children = client.get_block_children(block["id"])
-            if not callout_children or callout_children[0].get("type") != "toggle":
-                return
-                
-            toggle_children = client.get_block_children(callout_children[0]["id"])
-            if not toggle_children or toggle_children[0].get("type") != "paragraph":
-                return
-                
-            self.aggregated_urls_paragraph_id = toggle_children[0]["id"]
-            nested_rich_text = toggle_children[0]["paragraph"].get("rich_text", [])
-            text_content = "".join(rt.get("plain_text", "") for rt in nested_rich_text)
-
-        if text_content:
-            self.existing_articles.extend(text_content.split("\n"))
 
     def _append_error_block(self, client: NotionClient, error_msg: str, mention_user: bool = False) -> None:
         try:

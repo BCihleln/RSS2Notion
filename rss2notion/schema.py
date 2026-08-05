@@ -24,6 +24,7 @@ class EntryFields:
     PUBLISHED =         "Published" # Read/Write 
     STATE =             "State"     # Read/Write 
     SOURCE =            "Source"    # Read/Write 
+    PARENT_ITEM =       "Aggregate Parent"  # Read/Write, Sub-item parent relation 
 
 
 class StatusValues:
