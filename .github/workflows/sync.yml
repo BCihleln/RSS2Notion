@@ -16,7 +16,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Resolve versions and download uv via GitHub instead of the default path
+      # (manifest on raw.githubusercontent.com + Astral mirror): since 2026-09-30
+      # the manifest fetch often exceeds setup-uv's fetch timeout (see setup-uv #1016)
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          download-from-astral-mirror: false
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --no-dev
+
       # Connect to Tailscale network to access the self-hosted RSSHub on NAS
+      # Only the sync step needs the tailnet, so connect after all installs are done
       # Details can be found in: docs/tailscale-github-actions-implementation-plan.md
       - name: Connect to Tailscale
         uses: tailscale/github-action@v4
@@ -24,15 +39,6 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8.2.0
-
-      - name: Set up Python
-        run: uv python install
-
-      - name: Install dependencies
-        run: uv sync --no-dev
 
       - name: Run RSS sync
         env:
